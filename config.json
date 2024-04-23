@@ -1,0 +1,38 @@
+{
+  "chains": {
+    "ethereum": {
+      "watchers": [],
+      "first_block": 0,
+      "portal": "0x000",
+      "oracle": "0x000",
+      "mode": "finalized"
+    },
+    "goerli": {
+      "watchers": [],
+      "first_block": 9490000,
+      "portal": "0x000",
+      "oracle": "0x000",
+      "mode": "finalized"
+    }
+  },
+  "logger": {
+    "directory": "logs",
+    "format": "%H:%M:%S",
+    "level": "INFO",
+    "when": "MIDNIGHT",
+    "interval": 1,
+    "backupCount": 15
+  },
+  "state": { "directory": "checkpoints" },
+  "email": {
+    "target_emails": [],
+    "sender_email": "",
+    "subject": "Telescope Message",
+    "body": "This email is automatically generated. Do not respond.",
+    "filename": ""
+  },
+  "telegrams": {
+    "user_id": "1943125643",
+    "body": "Hello! This is your bot speaking! From Telescope"
+  }
+}
