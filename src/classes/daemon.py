@@ -2,17 +2,20 @@ from typing import Callable
 from threading import Thread, Event
 
 from ..globals.exceptions import DeadDaemonException, DaemonStoppedException
-from .stateful import Stateful, Status
+
 from .trigger import Trigger
+from .database import Database
 
 
-class Daemon(Stateful):
+class Daemon:
+    # TODO: inherit loggable
     """
     A daemon repeats a specific task with given interval as a period.
     Daemons use a single thread to run a loop at the background.
     However, a task can use multiprocessing to make things faster (not suggested)
 
     An example:
+
       ```
       def print_time():
         print(datetime.datetime.now())
@@ -32,19 +35,14 @@ class Daemon(Stateful):
     """
 
     def __init__(
-        self, interval: int, task: Callable, structure: dict, triggers: list[Trigger]
+        self,
+        interval: int,
+        task: Callable,
+        triggers: list[Trigger],
     ):
-        Stateful.__init__(
-            self,
-            name=structure["name"],
-            index=structure["index"],
-            columns=structure["columns"],
-        )
-
         self.__set_task(task)
         self.__set_interval(interval)
         self.__set_triggers(triggers)
-        self.set_status(Status.INITIATED)
 
         self.startFlag: Event = Event()
         self.stopFlag: Event = Event()
@@ -75,7 +73,6 @@ class Daemon(Stateful):
         while not self.stopFlag.wait(self.interval):
             try:
                 # run the task and update the state
-                self.set_status(Status.ACTIVE)
                 changes: dict = self.__task()
 
                 if len(changes) > 0:
@@ -84,12 +81,10 @@ class Daemon(Stateful):
                         [f.process(changes) for f in self.triggers]
 
                 # finish the loop
-                self.set_status(Status.WAITING)
 
             except:
                 self.startFlag.clear()
                 self.stopFlag.set()
-                self.set_status(Status.STOPPED)
                 raise DaemonStoppedException
 
     def run(self):
@@ -112,5 +107,4 @@ class Daemon(Stateful):
         if not self.startFlag.is_set() or self.stopFlag.is_set():
             raise DeadDaemonException  # todo change name
 
-        self.set_status(Status.STOPPED)
         self.stopFlag.set()

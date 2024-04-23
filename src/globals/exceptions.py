@@ -35,3 +35,7 @@ class UnknownKeyException(Exception):
 
 class VerificationException(Exception):
     "Provided state does not have a way to verify"
+
+
+class PythonVersionException(Exception):
+    "Python version is not supported"

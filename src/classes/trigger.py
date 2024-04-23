@@ -1,8 +1,7 @@
 from typing import Callable
-from .stateful import Stateful, Status
 
 
-class Trigger(Stateful):
+class Trigger:
     """
     Bound to a Daemon, a Trigger also processes the changes of the daemon after a loop.
     Triggers can utilize the Stateful.state as well, but mainly is not very state oriented.
@@ -11,15 +10,7 @@ class Trigger(Stateful):
     """
 
     def __init__(self, structure: dict[str, type], action: Callable):
-        Stateful.__init__(
-            self,
-            name=structure["name"],
-            index=structure["index"],
-            columns=structure["columns"],
-        )
-
         self.__register_action(action)
-        self.set_status(Status.INITIATED)
 
     def __register_action(self, action: Callable):
         """
@@ -32,8 +23,6 @@ class Trigger(Stateful):
         Process the action, __action might mutate .state
         """
         try:
-            self.set_status(Status.ACTIVE)
             self.__action(changes)
-            self.set_status(Status.WAITING)
-        except:
-            raise
+        except Exception as e:
+            raise e

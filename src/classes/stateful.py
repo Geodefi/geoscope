@@ -193,7 +193,9 @@ class Stateful(MetaState, Logable):
 
         try:  # can fail
             if as_index:
-                self.state.reset_index(inplace=True).set_index(as_index, inplace=True)
+                self.state.reset_index(inplace=True).set_index(
+                    as_index, inplace=True
+                )
 
             if len(self.state.index) == 0:
                 # if df is empty it is safe to assume that dict has all the keys,
@@ -225,7 +227,9 @@ class Stateful(MetaState, Logable):
             raise
 
         if as_index:
-            self.state.reset_index(inplace=True).set_index(self.__index, inplace=True)
+            self.state.reset_index(inplace=True).set_index(
+                self.__index, inplace=True
+            )
 
         if sort:
             self._sort()

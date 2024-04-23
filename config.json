@@ -15,24 +15,22 @@
       "mode": "finalized"
     }
   },
+  "directory": "telescope",
   "logger": {
     "directory": "logs",
-    "format": "%H:%M:%S",
     "level": "INFO",
-    "when": "MIDNIGHT",
+    "when": "midnight",
     "interval": 1,
-    "backupCount": 15
+    "backupCount": 30
   },
-  "state": { "directory": "checkpoints" },
+  "database": {
+    "directory": "db"
+  },
   "email": {
     "target_emails": [],
     "sender_email": "",
     "subject": "Telescope Message",
     "body": "This email is automatically generated. Do not respond.",
     "filename": ""
-  },
-  "telegrams": {
-    "user_id": "1943125643",
-    "body": "Hello! This is your bot speaking! From Telescope"
   }
 }

@@ -32,9 +32,7 @@ BlockDaemon() x1 => triggers:[theft,]
 ============
 Telescope :
 -> birden fazla daemon çalıştırıp, her daemon loopu bitince de triggerları çalıştırıyor.
--> sonra : içerisine bi tane config alıyo ve ona göre customize ediyor.
-
-.
+-> içerisine bi tane config alıyo ve ona göre customize ediyor.
 
 # Planning
 
@@ -61,9 +59,8 @@ TASKS:
 
 Daemons:
 
-1. EVENT ->
+1. EVENT -> gerek kalmadı
 2. BLOCK -> planets{price, validators}
-3. BLOCK
 
 Note: eğer block recipient withdrawal pool değilse, biz de withdrawal pool a herhangi bir transaction yapılmış mı diye bakarız. hmm bu sıkıntı yaratabilir.
 Onun yerine relayların listesini tutabiliriz.
@@ -94,10 +91,6 @@ Current objective is to finish the update verification index? -> on every x bloc
 TODO_comment : Please remove any unnecessary data at the end.
 Lets keep anything that can be useful for now.
 
-<!-- eğer tek 1 tane stateful kullanıp birden fazla database üzerinde çalışırsak, bir takım optimizasyonlar yapabiliriz. -->
-Kİ BUNU DA AŞIRI KOLAY Bİ ŞEKİLDE REGİSTER_STATE fonksiyonu ekleyerek yapabiliriz. aslında çok mantıklı. tek 1 tane olucak bütün stateleri o handle edicek. neden olmasın.
-<!-- -> GEREK YOKK -->
-
 TODO_task
 todo_later
 TODO_comment
@@ -108,3 +101,31 @@ TODO_finally
 2. Error Handling
 3. Comment
 4. Logging + Notifications
+
+# TODOs: ICE
+
+- 1 gün (8 session)
+Daemon + Trigger classı temize çekilicek
+Statefullar silinicek çünkü artık kullanmıyoruz
+Loglar şuan mühim değil ama istersen Daemon and Trigger classlarına koy
+Daemonları temize çek, triggerlara bak.
+
+Globals, utils temize çekilip test edilicek, yorum yazılıcak, todolar belirlenicek.
+
+.ipynb kullanmak yerine test yazılarak ilerlenebilir.
+
+# TODOs: Crash
+
+- create multisig / şuan herhangi bir multisig olur, faillaması da okay.
+
+1. Tx yaratmak ve multisig ile submitlemek: (reportBeacon) MerkleTrigger __update_chain(function)
+   1. error handling (web3)
+2. multisig yerine watcher a atmak (tx ı)
+
+- BlockDaemon  -> MerkleTrigger        -> reportBeacon
+               -> verificationTrigger  -> updateVerificationIndex
+
+# TODOs later
+
+regulateOperators Trigger ı yazılmamış.
+MerkleTrigger -> operator ve pool feeleri çıkarılıcak.
