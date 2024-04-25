@@ -105,6 +105,8 @@ TODO_finally
 # TODOs: ICE
 
 - 1 gün (8 session)
+
+use new geode-py
 Daemon + Trigger classı temize çekilicek
 Statefullar silinicek çünkü artık kullanmıyoruz
 Loglar şuan mühim değil ama istersen Daemon and Trigger classlarına koy
