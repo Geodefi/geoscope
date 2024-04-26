@@ -26,6 +26,14 @@
   "database": {
     "directory": "db"
   },
+  "abi_directory": {
+    "folder_name": "./abis/",
+    "files": {
+      "gnosis": "Gnosis.json",
+      "portal": "Portal.json",
+      "gEth": "gETH.json"
+    }
+  },
   "email": {
     "target_emails": [],
     "sender_email": "",

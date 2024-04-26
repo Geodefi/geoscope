@@ -39,3 +39,11 @@ class VerificationException(Exception):
 
 class PythonVersionException(Exception):
     "Python version is not supported"
+
+
+class InvalidPrivateKeyException(Exception):
+    "Invalid Private Key"
+
+
+class ContractCreationException(Exception):
+    "If contract object cannot be created due to either abi, address or web3 connection error, this exception is raised"

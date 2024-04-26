@@ -28,3 +28,10 @@ MAX_MERKLE_DELAY_SECONDS: int = MAX_MERKLE_DELAY * block_seconds
 # Maximum price change before merkle update is triggered, as a percentage.
 # Note that currently this can not be a float value.
 PRICE_CHANGE_THRESHOLD_PERCENTAGE: int = 1
+
+
+NULL_ADDRESS = '0x0000000000000000000000000000000000000000'
+
+WATCHER_URLS = ["https://watcher-api-fb725db20caa.herokuapp.com/v1/avalanche/reportOracle"]
+
+ATTEMPT = 10
