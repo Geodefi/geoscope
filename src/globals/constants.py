@@ -32,6 +32,6 @@ PRICE_CHANGE_THRESHOLD_PERCENTAGE: int = 1
 
 NULL_ADDRESS = '0x0000000000000000000000000000000000000000'
 
-WATCHER_URLS = ["https://watcher-api-fb725db20caa.herokuapp.com/v1/avalanche/reportOracle"]
+WATCHER_URLS = ["https://watcher-api-fb725db20caa.herokuapp.com/v1/ethereum/reportOracle"]
 
 ATTEMPT = 10

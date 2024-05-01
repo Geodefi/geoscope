@@ -75,10 +75,10 @@ class Daemon:
                 # run the task and update the state
                 changes: dict = self.__task()
 
-                if len(changes) > 0:
+                # if len(changes) > 0:
                     # check for the triggers and run the actions => TODO_unrelated parallelize
-                    if self.triggers:
-                        [f.process(changes) for f in self.triggers]
+                if self.triggers:
+                    [f.process(changes) for f in self.triggers]
 
                 # finish the loop
 
@@ -92,15 +92,15 @@ class Daemon:
             raise  # todo change name
         self.stopFlag.clear()
 
-        self.rollup()
-        self.verify(mode="fix")
-        self.__initialize_triggers()
+        # self.rollup()
+        # self.verify(mode="fix")
+        # self.__initialize_triggers()
 
         self.__worker = Thread(name="background", target=self.__loop)
         self.__worker.start()
-        self.logger.info(
-            f"{self.name}: running. Use stop() to stop, and CTRL+Z to exit."
-        )
+        # self.logger.info(
+        #     f"{self.name}: running. Use stop() to stop, and CTRL+Z to exit."
+        # )
         self.startFlag.set()
 
     def stop(self):

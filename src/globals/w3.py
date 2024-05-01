@@ -1,6 +1,6 @@
 from web3 import Web3, HTTPProvider, WebsocketProvider
 from web3.middleware import geth_poa_middleware
-from globals.env import READ_ONLY, PRIVATE_KEY, PROVIDER_URL
+from globals.env import READ_ONLY, PRIVATE_KEY, EXECUTION_API
 
 if not READ_ONLY:
     if PRIVATE_KEY:
@@ -20,9 +20,9 @@ if not READ_ONLY:
             "No PRIVATE_KEY provided")
 
 try:
-    if PROVIDER_URL[0:5] == 'https':
+    if EXECUTION_API[0:5] == 'https':
         provider = HTTPProvider(url)
-    elif PROVIDER_URL[0:3] == 'wss':
+    elif EXECUTION_API[0:3] == 'wss':
         provider = WebsocketProvider(url)
 
     W3 = Web3(provider)
