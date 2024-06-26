@@ -1,0 +1,40 @@
+import sys
+from web3 import Web3
+from web3.contract.contract import ContractEvent
+
+from src.globals import SDK
+
+
+def setup_daemons():
+    """Initializes and runs the daemons for the triggers.
+
+    This function is called at the beginning of the program to make sure the
+    daemons are running.
+    """
+    events: ContractEvent = SDK.portal.contract.events
+
+    # Triggers
+
+    # Create appropriate type of Daemons for the triggers
+
+    # Run the daemons
+
+
+def main():
+    """Main function of the program.
+
+    This function is called when the program is run.
+
+    initializes and sets up the daemons.
+    """
+
+    try:
+        setup_daemons()
+
+    # pylint: disable-next=broad-exception-caught
+    except Exception as e:
+        sys.exit(e)
+
+
+if __name__ == "__main__":
+    main()

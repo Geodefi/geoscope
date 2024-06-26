@@ -1,28 +1,60 @@
+# -*- coding: utf-8 -*-
+
 from typing import Callable
+from src.logger import log
 
 
 class Trigger:
-    """
-    Bound to a Daemon, a Trigger also processes the changes of the daemon after a loop.
-    Triggers can utilize the Stateful.state as well, but mainly is not very state oriented.
-    A trigger can only have 1 action, since we do not want the state to be mutated by multiple actions
-    and cause a race condition and data ambigiuty
+    """Bound to a Daemon, a Trigger also processes the changes of the daemon after a loop.
+    A trigger can only have 1 action. It is a callable object. It is used to process the changes of the daemon.
+
+    Example:
+        def action():
+            print(datetime.datetime.now())
+
+        t = Trigger(action)
+
+    Attributes:
+        __action (Callable): Function to be called when Triggered.
     """
 
-    def __init__(self, structure: dict[str, type], action: Callable):
+    def __init__(self, name: str, action: Callable) -> None:
+        """Initializes a Trigger object. The trigger will process the changes of the daemon after a loop.
+        It is a callable object. It is used to process the changes of the daemon. It can only have 1 action.
+
+        Args:
+            name (str): name of the trigger to be used when logging etc. Every Trigger must have a name. 5-17 char.
+            action (Callable): function to be called when Triggered.
+
+        Raises:
+            ValueError: Name length should be max 17 characters.
+        """
+
+        __name_len = 17
+        if len(name) > __name_len:
+            raise ValueError(
+                f"Name length should be max {__name_len} characters."
+            )
+        self.name: str = name
+
+        log.debug(f"Trigger {name} is initalized.")
         self.__register_action(action)
 
-    def __register_action(self, action: Callable):
+    def __register_action(self, action: Callable) -> None:
+        """Registers the action to be called during the processing of the daemon's changes.
+
+        Args:
+            action (Callable): function to be called when Triggered.
         """
-        Sets an action to be called during processing of the daemon's changes
-        """
+
         self.__action: Callable = action
 
-    def process(self, changes: dict):
+    def process(self, *args, **kwargs) -> None:
+        """Processes the changes of the daemon after a loop.
+
+        Args:
+            *args: Variable length argument list.
+            **kwargs: Arbitrary keyword arguments.
         """
-        Process the action, __action might mutate .state
-        """
-        try:
-            self.__action(changes)
-        except Exception as e:
-            raise e
+
+        self.__action(*args, **kwargs)

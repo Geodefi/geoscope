@@ -36,7 +36,7 @@ def get_block_number() -> int:
         # incase all the slots in the epoch have missed a block! wtf...
         if epoch == 0:
             # incase all the beacon chain is a lie! wtf...
-            raise
+            raise Exception("All the beacon chain is a lie?!?!")
         slots: list = get_slots()
 
         # Find the maximum block number among the slots using the "exec_block_number" key

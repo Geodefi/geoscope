@@ -1,0 +1,14 @@
+[tool.poetry]
+name = "geoscope"
+version = "0.1.0"
+description = ""
+authors = ["crashbandicoott <bandicoot@geode.fi>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.9"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

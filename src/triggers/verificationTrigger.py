@@ -14,8 +14,8 @@ from ..globals.constants import (
     MAX_VERIFICATION_DELAY,
 )
 
-from ..utils.events import get_all_events, decode_abi
-from ..utils.portal import stake_params, get_validator
+from ..helpers.event import get_all_events, decode_abi
+from ..helpers.portal import stake_params, get_validator
 from ..utils.list import find_missing
 
 
@@ -67,7 +67,9 @@ class VerificationTrigger(Trigger):
         for interval in logs:
             for event in interval:
                 if not event.removed:
-                    decoded = decode_abi(["uint256", "uint256", "bytes[]"], event.data)
+                    decoded = decode_abi(
+                        ["uint256", "uint256", "bytes[]"], event.data
+                    )
                     for pk in decoded[2]:
                         val = get_validator(pk)
                         data[val.index] = {
@@ -98,7 +100,9 @@ class VerificationTrigger(Trigger):
 
         return self.__parse_proposal_events(logs)
 
-    def __validate_proposal(self, index: int, last_new_block: int) -> ProposalStatus:
+    def __validate_proposal(
+        self, index: int, last_new_block: int
+    ) -> ProposalStatus:
         """
         Validates a proposal as pending/valid/invalid:
         1. Validator's state on Portal is PROPOSED
@@ -131,9 +135,9 @@ class VerificationTrigger(Trigger):
             return ProposalStatus.PENDING
 
         # get withdrawal credential
-        wc = SDK.Portal.pool(int(self.state.at[index, "pool_id"])).withdrawalCredential[
-            2:
-        ]
+        wc = SDK.Portal.pool(
+            int(self.state.at[index, "pool_id"])
+        ).withdrawalCredential[2:]
 
         # - sig1
         if not validate_parameters(
@@ -157,7 +161,9 @@ class VerificationTrigger(Trigger):
 
         return ProposalStatus.VALID
 
-    def __should_update_chain(self, proposals: dict, last_new_block: int) -> bool:
+    def __should_update_chain(
+        self, proposals: dict, last_new_block: int
+    ) -> bool:
         """
         CONDITIONS:
         1. any validator have been waiting for > MAX_VERIFICATION_DELAY
@@ -193,7 +199,9 @@ class VerificationTrigger(Trigger):
         assert new_index != 0
 
         invalid_array = [
-            key for key, val in validations.items() if val == ProposalStatus.INVALID
+            key
+            for key, val in validations.items()
+            if val == ProposalStatus.INVALID
         ]
 
     def __update_verification_index(self, changes: dict[dict]) -> tuple:
@@ -212,7 +220,9 @@ class VerificationTrigger(Trigger):
         first_new_block = 9000000  # TODO_finally delete this line
         last_new_block = 10114834  # TODO_finally delete this line
 
-        new_validators = self.__get_proposal_events(first_new_block, last_new_block)
+        new_validators = self.__get_proposal_events(
+            first_new_block, last_new_block
+        )
         self.update_many(new_validators)
 
         # 2. Make sure there are no missing indices
@@ -301,7 +311,9 @@ class VerificationTrigger(Trigger):
         first_block = block_daemon_state.index.min()
         last_block = block_daemon_state.index.max()
 
-        all_validators: dict = self.__get_proposal_events(first_block, last_block)
+        all_validators: dict = self.__get_proposal_events(
+            first_block, last_block
+        )
 
         for val_index, validator in all_validators.items():
             is_valid = self.__validate_validator(val_index, validator)

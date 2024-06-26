@@ -1,5 +1,13 @@
-# assuming avg 1 hour  == 300 blocks
-hour_blocks: int = 300
+# -*- coding: utf-8 -*-
+
+from .config import CONFIG
+from .sdk import SDK
+
+network: str = SDK.network.name
+chain: dict = CONFIG.chains[network]
+hour_blocks: int = 3600 // int(chain.interval)
+
+# TODO: check block_seconds if can be fetched from chain
 
 # assuming avg  1 block == 12 sec
 block_seconds: int = 12
@@ -30,8 +38,10 @@ MAX_MERKLE_DELAY_SECONDS: int = MAX_MERKLE_DELAY * block_seconds
 PRICE_CHANGE_THRESHOLD_PERCENTAGE: int = 1
 
 
-NULL_ADDRESS = '0x0000000000000000000000000000000000000000'
+NULL_ADDRESS = "0x0000000000000000000000000000000000000000"
 
-WATCHER_URLS = ["https://watcher-api-fb725db20caa.herokuapp.com/v1/ethereum/reportOracle"]
+WATCHER_URLS = [
+    "https://watcher-api-fb725db20caa.herokuapp.com/v1/ethereum/reportOracle"
+]
 
 ATTEMPT = 10
