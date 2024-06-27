@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import sys
+
 from geodefi import Geode
 from web3.middleware import construct_sign_and_send_raw_middleware
 

@@ -1,8 +1,15 @@
 import sys
-from web3 import Web3
 from web3.contract.contract import ContractEvent
 
-from src.globals import SDK
+from src.daemons import BlockDaemon, EventDaemon
+
+from src.triggers import (
+    FeeTheftTrigger,
+    MerkleTrigger,
+    VerificationTrigger,
+)
+
+from src.globals import SDK, hour_blocks
 
 
 def setup_daemons():
@@ -14,10 +21,29 @@ def setup_daemons():
     events: ContractEvent = SDK.portal.contract.events
 
     # Triggers
+    fee_theft_trigger: FeeTheftTrigger = FeeTheftTrigger()
+    merkle_trigger: MerkleTrigger = MerkleTrigger()
+    verification_trigger: VerificationTrigger = VerificationTrigger()
 
     # Create appropriate type of Daemons for the triggers
+    verification_daemon: EventDaemon = EventDaemon(
+        trigger=verification_trigger, event=events.StakeProposal()
+    )
+
+    fee_theft_daemon: BlockDaemon = BlockDaemon(
+        trigger=fee_theft_trigger, block_period=1
+    )
+
+    merkle_daemon: BlockDaemon = BlockDaemon(
+        trigger=merkle_trigger,
+        block_period=12 * hour_blocks,  # TODO: Discuss this value
+    )
 
     # Run the daemons
+
+    verification_daemon.run()
+    fee_theft_daemon.run()
+    merkle_daemon.run()
 
 
 def main():

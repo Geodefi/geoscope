@@ -4,19 +4,19 @@ import pandas as pd
 from geode.globals import VALIDATOR_STATE, DEPOSIT_SIZE, GENESIS_FORK_VERSION
 from geode.utils.bls.validate import validate_parameters
 
-from ..classes import Trigger
-from ..globals.sdk import SDK
-from ..globals.events import StakeProposal_sig
-from ..globals.constants import (
+from ...classes import Trigger
+from ...globals.sdk import SDK
+from ...globals.events import StakeProposal_sig
+from ...globals.constants import (
     MIN_BLOCK_DELAY,
     PENDING_PROPOSALS_THRESHOLD,
     MIN_VERIFICATION_DELAY,
     MAX_VERIFICATION_DELAY,
 )
 
-from ..helpers.event import get_all_events, decode_abi
-from ..helpers.portal import stake_params, get_validator
-from ..utils.list import find_missing
+from ...helpers.event import get_all_events, decode_abi
+from ...helpers.portal import stake_params, get_validator
+from ...utils.list import find_missing
 
 
 class ProposalStatus(Enum):

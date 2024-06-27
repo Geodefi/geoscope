@@ -1,2 +1,2 @@
-from .verificationTrigger import VerificationTrigger
-from .merkleTrigger import MerkleTrigger
+from .block import FeeTheftTrigger, MerkleTrigger
+from .event import VerificationTrigger

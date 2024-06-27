@@ -2,20 +2,20 @@ from itertools import repeat
 from geode.globals import DEPOSIT_SIZE
 from geode.utils.wrappers import httpRequest
 from geode.utils.merkle import StandartMerkleTree
-from ..utils.chain import get_epoch
-from ..classes import Trigger
-from ..globals.config import CONFIG
-from ..globals.sdk import SDK
-from ..globals.events import Stake_sig
-from ..globals.constants import (
+from ...utils.chain import get_epoch
+from ...classes import Trigger
+from ...globals.config import CONFIG
+from ...globals.sdk import SDK
+from ...globals.events import Stake_sig
+from ...globals.constants import (
     BEACON_DENOMINATOR,
     ETHER_DENOMINATOR,
     MAX_MERKLE_DELAY_SECONDS,
     PRICE_CHANGE_THRESHOLD_PERCENTAGE,
 )
-from ..utils.thread import multithread, multithread
-from ..helpers.event import get_all_events, decode_abi
-from ..helpers.portal import stake_params, get_validator, get_all_pool_ids
+from ...utils.thread import multithread, multithread
+from ...helpers.event import get_all_events, decode_abi
+from ...helpers.portal import stake_params, get_validator, get_all_pool_ids
 import pandas as pd
 
 # @httpRequest

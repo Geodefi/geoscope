@@ -1,19 +1,21 @@
 import os
 import json
+from typing import List, Any
+from time import sleep
+
 import requests
 from web3.exceptions import ContractLogicError
 from web3.contract import Contract
 from eth_account import Account
 from eth_abi import encode, is_encodable
 from eth_typing import ChecksumAddress
-from typing import List, Any
 from hexbytes import HexBytes
-from time import sleep
 
-
-
-
-from globals.exceptions import WatcherException, ContractCreationException, CheckSumException
+from globals.exceptions import (
+    WatcherException,
+    ContractCreationException,
+    CheckSumException,
+)
 from globals.config import CONFIG
 from globals.w3 import W3
 from globals.constants import NULL_ADDRESS, WATCHER_URLS, ATTEMPT
@@ -33,10 +35,12 @@ class Gnosis(object):
 
         self.caller: Owner = caller
 
-        gnosis_abi_path = os.path.join(CONFIG.abi_directory.folder_name , CONFIG.abi_directory.files.gnosis)
+        gnosis_abi_path = os.path.join(
+            CONFIG.abi_directory.folder_name, CONFIG.abi_directory.files.gnosis
+        )
 
         # Get ABI
-        with open(gnosis_abi_path, 'r') as file:
+        with open(gnosis_abi_path, "r") as file:
             a = file.read()
         abi = json.loads(a)
 
@@ -51,27 +55,40 @@ class Gnosis(object):
 
         except KeyError:
             raise ContractCreationException(
-                "GeodeFinance: Please provide correct Gnosis abi and contract address in abi/.json")
+                "GeodeFinance: Please provide correct Gnosis abi and contract address in abi/.json"
+            )
 
         try:
             self.gnosisContract: Contract = W3.eth.contract(
-                abi=self.abi, address=self.safe_address)
+                abi=self.abi, address=self.safe_address
+            )
         except:
             raise ContractCreationException(
-                "GeodeFinance: Gnosis- Invalid ABI or Contract Address")
+                "GeodeFinance: Gnosis- Invalid ABI or Contract Address"
+            )
 
         # LOGGER.debug(f"The Gnosis is found at      : {self.safe_address}")
 
-    def sendTx(self, contract_address: ChecksumAddress, method_id: str, param_types: List[str], param_args: List[Any]):
+    def sendTx(
+        self,
+        contract_address: ChecksumAddress,
+        method_id: str,
+        param_types: List[str],
+        param_args: List[Any],
+    ):
         """
         :param contract_address: The address of target contract. (Not Safe contract)
         :param PLANET_ID: The registered Planet ID
-        :param OPERATOR_ID: The list of target opearators. 
-        :param balanceIncrease: The list of how much avax has been gained by staking per operator. 
+        :param OPERATOR_ID: The list of target opearators.
+        :param balanceIncrease: The list of how much avax has been gained by staking per operator.
         """
 
-        assert len(param_types) == len(param_args), "The types and args must have same length."
-        assert is_encodable(param_types, param_args), "The types and args are not encodable."
+        assert len(param_types) == len(
+            param_args
+        ), "The types and args must have same length."
+        assert is_encodable(
+            param_types, param_args
+        ), "The types and args are not encodable."
 
         encoded_data = method_id + encode(param_types, param_args).hex()
 
@@ -82,7 +99,8 @@ class Gnosis(object):
         # get Tx Hash
         try:
             safe_tx_hash: HexBytes = self.getTransactionHash(
-                contract_address, encoded_data, safe_nonce)
+                contract_address, encoded_data, safe_nonce
+            )
         except:
             raise
 
@@ -94,33 +112,44 @@ class Gnosis(object):
         tx_receipt = None
         try:
             success, tx_receipt = self.execTransaction(
-                contract_address, encoded_data, signature)
+                contract_address, encoded_data, signature
+            )
 
         except ContractLogicError as e:
             # This spesific error is related with gnosis gas fees.
-            if str(e) == 'execution reverted: GS026':
-                raise # TODO: This error should be handled!
+            if str(e) == "execution reverted: GS026":
+                raise  # TODO: This error should be handled!
             else:
                 # LOGGER.warning(f"This error has been ignored: {e}")
                 pass
 
         return success, tx_receipt
 
-    def getHashAndSignature(self, contract_address: ChecksumAddress, method_id: str, param_types: List[str], param_args: List[Any]):
+    def getHashAndSignature(
+        self,
+        contract_address: ChecksumAddress,
+        method_id: str,
+        param_types: List[str],
+        param_args: List[Any],
+    ):
         # get nonce
 
         safe_nonce = self.getNonce()
 
-        
-        assert len(param_types) == len(param_args), "The types and args must have same length."
-        assert is_encodable(param_types, param_args), "The types and args are not encodable."
+        assert len(param_types) == len(
+            param_args
+        ), "The types and args must have same length."
+        assert is_encodable(
+            param_types, param_args
+        ), "The types and args are not encodable."
 
         # form data =
         encoded_data = method_id + encode(param_types, param_args).hex()
 
         # form Transaction hash by optimistic balance increase
         txHash = self.getTransactionHash(
-            to=contract_address, data=encoded_data, nonce=safe_nonce)
+            to=contract_address, data=encoded_data, nonce=safe_nonce
+        )
 
         # get signature
         privkey = self.caller.getPrivateKey()
@@ -128,11 +157,18 @@ class Gnosis(object):
 
         return txHash, signature, encoded_data, safe_nonce
 
-    def sendTxToWatchers(self, contract_address: ChecksumAddress, method_id: str, param_types: List[str], param_args: List[Any]):
+    def sendTxToWatchers(
+        self,
+        contract_address: ChecksumAddress,
+        method_id: str,
+        param_types: List[str],
+        param_args: List[Any],
+    ):
         # SEND TO WATCHERs
 
         txHash, signature, encoded_data, safe_nonce = self.getHashAndSignature(
-            contract_address, method_id, param_types, param_args)
+            contract_address, method_id, param_types, param_args
+        )
 
         # FIX ME AFTER THE WATCHER UPDATE
 
@@ -143,7 +179,7 @@ class Gnosis(object):
             "safe_nonce": safe_nonce,
             "txHash": txHash,
             "signature": signature,
-            "data": encoded_data
+            "data": encoded_data,
         }
 
         for watcher_url in WATCHER_URLS:
@@ -158,11 +194,11 @@ class Gnosis(object):
                         count += 1
                     else:
                         raise WatcherException(
-                            f"GeodeFinance: Couldn't get the data after {count} attempts.")
+                            f"GeodeFinance: Couldn't get the data after {count} attempts."
+                        )
 
             if res.status_code == 500:
-                raise WatcherException(
-                    f"The status code is {res.status_code}.")
+                raise WatcherException(f"The status code is {res.status_code}.")
 
             # def parseResponse():
             #    # TODO BE IMPLEMENTED (and moved to somewhere else)
@@ -192,7 +228,9 @@ class Gnosis(object):
         """
         return int(self.gnosisContract.functions.nonce().call())
 
-    def getTransactionHash(self, to: ChecksumAddress, data: HexBytes, nonce: int) -> HexBytes:
+    def getTransactionHash(
+        self, to: ChecksumAddress, data: HexBytes, nonce: int
+    ) -> HexBytes:
         """
         :param to: address of target contract (portal)
         :param data: hex-encoded input data
@@ -201,20 +239,24 @@ class Gnosis(object):
         :returns: hex-encoded transaction hash
         """
 
-        return W3.to_hex(self.gnosisContract.functions.getTransactionHash(
-            to,
-            0,  # value
-            data,
-            0,  # operation
-            0,  # safeTxGas
-            0,  # baseGas
-            0,  # gasPrice
-            NULL_ADDRESS,  # gasToken
-            NULL_ADDRESS,  # refundReceiver
-            nonce
-        ).call())
+        return W3.to_hex(
+            self.gnosisContract.functions.getTransactionHash(
+                to,
+                0,  # value
+                data,
+                0,  # operation
+                0,  # safeTxGas
+                0,  # baseGas
+                0,  # gasPrice
+                NULL_ADDRESS,  # gasToken
+                NULL_ADDRESS,  # refundReceiver
+                nonce,
+            ).call()
+        )
 
-    def execTransaction(self, to: ChecksumAddress, data: HexBytes, signatures: str):
+    def execTransaction(
+        self, to: ChecksumAddress, data: HexBytes, signatures: str
+    ):
         """
         :param to: address of target contract (portal)
         :param data: hex-encoded input data
@@ -230,12 +272,10 @@ class Gnosis(object):
             0,  # gasPrice
             NULL_ADDRESS,  # gasToken
             NULL_ADDRESS,  # refundReceiver
-            signatures
-        ).buildTransaction(
-            {'from': self.caller.getAddress()}
-        )
+            signatures,
+        ).buildTransaction({"from": self.caller.getAddress()})
 
-        tx['nonce'] = self.caller.getNonce()
+        tx["nonce"] = self.caller.getNonce()
         privateKey = self.caller.getPrivateKey()
 
         signed = W3.eth.account.sign_transaction(tx, privateKey)
