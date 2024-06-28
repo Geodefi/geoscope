@@ -7,6 +7,8 @@ from ..globals.config import CONFIG
 # getting the block fetching mode from config.json. It is either 'latest' or 'finalized'
 block_mode = CONFIG.chains[SDK.network.name].mode
 
+# TODO: need to add these into the SDK and use from there
+
 
 @httpRequest
 def get_epoch(epoch: int or str = block_mode) -> str:

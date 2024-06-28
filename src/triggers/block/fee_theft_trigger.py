@@ -1,19 +1,7 @@
 # -*- coding: utf-8 -*-
 
-from itertools import repeat
-from geodefi.globals import VALIDATOR_STATE
-
 from src.logger import log
 from src.classes import Trigger
-from src.helpers import (
-    create_validators_table,
-    save_local_state,
-    save_portal_state,
-    check_and_stake,
-    fetch_verified_pks,
-    create_operators_table,
-)
-from src.utils import multithread
 
 
 class FeeTheftTrigger(Trigger):
