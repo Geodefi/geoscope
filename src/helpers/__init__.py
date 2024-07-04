@@ -17,6 +17,13 @@ from .portal import (
     get_operatorAllowance,
 )
 
+from .db_events import (
+    find_latest_event,
+    create_stake_proposal_table,
+    drop_stake_proposal_table,
+    reinitialize_stake_proposal_table,
+)
+
 from .db_validators import (
     create_validators_table,
     drop_validators_table,
@@ -30,6 +37,7 @@ from .db_validators import (
     save_exit_epoch,
     save_beacon_balances,
     fetch_verified_pks,
+    fetch_unverified_pks,
     check_pk_in_db,
     fetch_pool_id,
     fetch_balances_by_pool_id,

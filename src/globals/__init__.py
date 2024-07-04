@@ -8,7 +8,7 @@
 # from .constants import STEP
 from .config import CONFIG
 
-from .constants import hour_blocks, chain
+from .constants import hour_blocks, chain, MIN_BLOCK_DELAY
 
 from .env import (
     EXECUTION_API,

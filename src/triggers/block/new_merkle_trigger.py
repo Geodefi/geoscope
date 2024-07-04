@@ -140,7 +140,7 @@ class NewMerkleTrigger(Trigger):
         # update fee recepient balances
 
         # calculate prices
-        self.__calc_prices_batch()
+        prices = self.__calc_prices_batch()
 
         # check ts is valid to update chain
         # check price change is in the range

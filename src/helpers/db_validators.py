@@ -271,11 +271,48 @@ def fetch_verified_pks() -> list[str]:
 
     try:
         with Database() as db:
+            # TODO: check if portal_index should be < or <=, change on geonius if <=
             db.execute(
                 """
                 SELECT pubkey FROM Validators 
                 WHERE local_state = ?  
                 AND portal_index < ?
+                ORDER BY pool_id
+                """,
+                (int(VALIDATOR_STATE.PROPOSED), verification_index),
+            )
+            approved_pks: list[str] = db.fetchall()
+            log.info(
+                f"{len(approved_pks)} new verified public keys are detected."
+            )
+            log.debug(",".join(map(str, approved_pks)))
+
+            return approved_pks
+    except Exception as e:
+        raise DatabaseError(
+            f"Error fetching validators from table Validators"
+        ) from e
+
+
+def fetch_unverified_pks() -> list[str]:
+    """Fetches the data of the validators that are in the proposed state.
+
+    Returns:
+        list[str]: list of public keys of validators in proposed state
+
+    Raises:
+        DatabaseError: Error fetching validators from table
+    """
+    verification_index: int = get_StakeParams()[4]
+
+    try:
+        with Database() as db:
+            # TODO: check if portal_index should be > or >=
+            db.execute(
+                """
+                SELECT pubkey FROM Validators 
+                WHERE local_state = ?  
+                AND portal_index > ?
                 ORDER BY pool_id
                 """,
                 (int(VALIDATOR_STATE.PROPOSED), verification_index),
