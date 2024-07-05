@@ -7,10 +7,15 @@ from src.classes import Trigger
 from src.logger import log
 from src.globals import SDK, MIN_BLOCK_DELAY
 
-from src.helpers import fetch_unverified_pks
+from src.helpers import (
+    fetch_unverified_vals,
+    create_stake_proposal_table,
+    create_validators_table,
+)
 from src.actions import call_updateVerificationIndex
 
 
+# TODO: this wont be an event trigger, will be a block trigger, need to move it
 class NewVerificationTrigger(Trigger):
     """Every day checks for proposed validators.
 
@@ -26,9 +31,11 @@ class NewVerificationTrigger(Trigger):
         """
 
         Trigger.__init__(self, name=self.name, action=self.check_new_validators)
+        create_validators_table()
+        create_stake_proposal_table()
         log.debug(f"{self.name} is initated.")
 
-    def validate_proposals(self, pks: list[str], indexes: list[int]) -> tuple:
+    def validate_proposals(self, vals: list[tuple]) -> tuple:
         """
         Validates the proposals of the validators.
         Args:
@@ -40,8 +47,8 @@ class NewVerificationTrigger(Trigger):
         """
 
         invalid_pks = []
-        for pk, index in zip(pks, indexes):
-            status = self.validate_proposal(pk)
+        for pk, index, pool_id, sig31 in vals:
+            status = self.validate_proposal(pk, pool_id, sig31)
 
             if status == 0:
                 invalid_pks.append(pk)
@@ -53,7 +60,7 @@ class NewVerificationTrigger(Trigger):
 
         return new_verification_index, invalid_pks
 
-    def validate_proposal(self, pk: str) -> int:
+    def validate_proposal(self, pk: str, pool_id: str, sig31: str) -> int:
         """
         Validates a proposal as pending/valid/invalid:
         1. Validator's state on Portal is PROPOSED
@@ -64,6 +71,8 @@ class NewVerificationTrigger(Trigger):
 
         Args:
             pk (str): Public key of the validator.
+            pool_id (str): Pool ID of the validator.
+            sig31 (str): Signature 31 of the validator.
 
         Returns:
             int: Proposal status. (0: invalid, 1: valid, 2: pending)
@@ -98,32 +107,32 @@ class NewVerificationTrigger(Trigger):
             return 2
 
         # get withdrawal credential
-        # TODO: get pool_id from db here or fetch beforehand and pass it as an argument
         wc = SDK.portal.pool(int(pool_id)).withdrawalCredential[2:]
 
         # - sig1
         if not validate_parameters(
-            pubkey=pk,
-            withdrawal_credentials=wc,
+            pubkey=pk[2:],
+            withdrawal_credentials=wc[2:],
             amount=DEPOSIT_SIZE.PROPOSAL,
-            signature=sig1,  # deposit["signature"][2:],  # TODO: get sig1 from db here or fetch beforehand and pass it as an argument?
+            signature=sig1[
+                2:
+            ],  # deposit["signature"][2:],  # TODO: get sig1 from db here or fetch beforehand and pass it as an argument?
             fork_version=GENESIS_FORK_VERSION[SDK.network.name],
         ):
             return 0
 
         # - sig31
         if not validate_parameters(
-            pubkey=pk,
-            withdrawal_credentials=wc,
+            pubkey=pk[2:],
+            withdrawal_credentials=wc[2:],
             amount=DEPOSIT_SIZE.STAKE,
-            signature=sig31,  # self.state.at[index, "sig31"],  # TODO: get sig31 from db here or fetch beforehand and pass it as an argument?
+            signature=sig31[2:],
             fork_version=GENESIS_FORK_VERSION[SDK.network.value],
         ):
             return 0
 
         return 1
 
-    # TODO: this wont be an event trigger, will be a block trigger, need to move it
     def check_new_validators(self, *args, **kwargs) -> None:
         """The action! Check for new proposals, update if triggered.
 
@@ -135,15 +144,11 @@ class NewVerificationTrigger(Trigger):
         # if self.__check_new_proposals(fetch_unverified_pks()):
         #     self.__update_verification_index(changes)
 
-        pks, indexes = (
-            fetch_unverified_pks()
-        )  # fetch pool_id, sig1, sig31, and index from db
+        # data is already sorted according to increasing order of portal_index
+        # fetch pubkey, portal_index, pool_id, signature31 in this order from the db --> need to handle sig1 at some point
+        vals: list[tuple] = fetch_unverified_vals()
 
-        # TODO: sort pks according to increasing order of index
-
-        new_verification_index, invalid_pks = self.validate_proposals(
-            pks, indexes
-        )
+        new_verification_index, invalid_pks = self.validate_proposals(vals)
 
         # TODO: should update chain check should be implemented for MAX_VERIFICATION_DELAY and PENDING_PROPOSALS_THRESHOLD, MIN_VERIFICATION_DELAY
 

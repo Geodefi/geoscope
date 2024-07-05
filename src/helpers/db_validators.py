@@ -28,6 +28,7 @@ def create_validators_table() -> None:
                     beacon_index INTEGER NOT NULL UNIQUE,
                     pubkey TEXT NOT NULL PRIMARY KEY,
                     pool_id TEXT NOT NULL,
+                    operator_id TEXT NOT NULL,
                     local_state INT NOT NULL,
                     portal_state INT NOT NULL,
                     signature31 INTEGER NOT NULL,
@@ -35,7 +36,8 @@ def create_validators_table() -> None:
                     exit_epoch INTEGER,
                     balance TEXT,
                     withdrawn_balance TEXT,
-                    fee_recepient_balance TEXT
+                    fee_recepient_balance TEXT,
+                    geoscope_verification TEXT NOT NULL DEFAULT 'pending',
                 )
                 """
             )
@@ -82,11 +84,13 @@ def fetch_validator(pubkey: str) -> dict:
         "beacon_index": val.beacon_index,  # constant
         "pubkey": val.pubkey,  # constant
         "pool_id": val.poolId,  # constant
+        "operator_id": val.operatorId,  # constant
         "local_state": val.portal_state,
         "portal_state": val.portal_state,
         "signature31": val.signature31,  # constant
         "withdrawal_credentials": val.withdrawal_credentials,  # constant
         "exit_epoch": val.exit_epoch,  # can be set after proposal tx is mined
+        "balance": val.balance,
     }
 
 
@@ -116,18 +120,20 @@ def insert_many_validators(new_validators: list[dict]) -> None:
     try:
         with Database() as db:
             db.executemany(
-                "INSERT INTO Validators VALUES (?,?,?,?,?,?,?,?,?)",
+                "INSERT INTO Validators VALUES (?,?,?,?,?,?,?,?,?,?)",
                 [
                     (
                         a["portal_index"],
                         a["beacon_index"],
                         a["pubkey"],
                         a["pool_id"],
+                        a["operator_id"],
                         int(a["local_state"]),
                         int(a["portal_state"]),
                         a["signature31"],
                         a["withdrawal_credentials"],
                         a["exit_epoch"],
+                        a["balance"],
                     )
                     for a in new_validators
                 ],
@@ -294,7 +300,7 @@ def fetch_verified_pks() -> list[str]:
         ) from e
 
 
-def fetch_unverified_pks() -> list[str]:
+def fetch_unverified_vals() -> list[str]:
     """Fetches the data of the validators that are in the proposed state.
 
     Returns:
@@ -310,20 +316,20 @@ def fetch_unverified_pks() -> list[str]:
             # TODO: check if portal_index should be > or >=
             db.execute(
                 """
-                SELECT pubkey FROM Validators 
+                SELECT pubkey, portal_index, pool_id, signature31 FROM Validators 
                 WHERE local_state = ?  
                 AND portal_index > ?
-                ORDER BY pool_id
+                ORDER BY portal_index
                 """,
                 (int(VALIDATOR_STATE.PROPOSED), verification_index),
             )
-            approved_pks: list[str] = db.fetchall()
+            unverified_vals: list[tuple] = db.fetchall()
             log.info(
-                f"{len(approved_pks)} new verified public keys are detected."
+                f"{len(unverified_vals)} new verified public keys are detected."
             )
-            log.debug(",".join(map(str, approved_pks)))
+            log.debug(",".join(map(str, unverified_vals)))
 
-            return approved_pks
+            return unverified_vals
     except Exception as e:
         raise DatabaseError(
             f"Error fetching validators from table Validators"

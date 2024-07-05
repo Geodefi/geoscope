@@ -37,7 +37,7 @@ from .db_validators import (
     save_exit_epoch,
     save_beacon_balances,
     fetch_verified_pks,
-    fetch_unverified_pks,
+    fetch_unverified_vals,
     check_pk_in_db,
     fetch_pool_id,
     fetch_balances_by_pool_id,
