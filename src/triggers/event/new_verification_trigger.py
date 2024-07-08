@@ -87,6 +87,12 @@ class NewVerificationTrigger(Trigger):
         # case 2
         try:
             # TODO: check if this is the correct way to get deposits
+            # Until now there are 2 ways I found to get deposits:
+            # 1.  tracking all the blocks on beacon chain with block or time trigger
+            #     and checking for deposits and storing them in the db for later use
+            # 2.  creating an event trigger from the ethereum deposit contract and
+            #     fetch the DepositEvent(pubkey, withdrawal_credentials, amount, signature, to_little_endian_64(uint64(deposit_count))
+            #     and storing them in the db for later use
             deposits = SDK.beacon.beacon_deposit_snapshot(pk)
         except Exception as e:
             # TODO: it may not be pending, but failed to get deposits

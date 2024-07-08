@@ -264,6 +264,36 @@ def save_beacon_balances(pubkeys: list[str], balances: list[str]) -> None:
         ) from e
 
 
+def fetch_active_vals() -> list[tuple]:
+    """Fetches the data of the validators that are staked and active.
+
+    Returns:
+        list[str]: list of public keys of validators in proposed state
+
+    Raises:
+        DatabaseError: Error fetching validators from table
+    """
+    try:
+        with Database() as db:
+            db.execute(
+                """
+                SELECT pubkey, beacon_index FROM Validators 
+                WHERE local_state = ?
+                ORDER BY beacon_index
+                """,
+                (int(VALIDATOR_STATE.ACTIVE)),
+            )
+            active_vals: list[str] = db.fetchall()
+            log.info(f"{len(active_vals)} active validators are fetched.")
+            log.debug(",".join(map(str, active_vals)))
+
+            return active_vals
+    except Exception as e:
+        raise DatabaseError(
+            f"Error fetching active validators from table Validators"
+        ) from e
+
+
 def fetch_verified_pks() -> list[str]:
     """Fetches the data of the validators that are in the proposed state.
 
@@ -288,19 +318,17 @@ def fetch_verified_pks() -> list[str]:
                 (int(VALIDATOR_STATE.PROPOSED), verification_index),
             )
             approved_pks: list[str] = db.fetchall()
-            log.info(
-                f"{len(approved_pks)} new verified public keys are detected."
-            )
+            log.info(f"{len(approved_pks)} verified public keys are fetched.")
             log.debug(",".join(map(str, approved_pks)))
 
             return approved_pks
     except Exception as e:
         raise DatabaseError(
-            f"Error fetching validators from table Validators"
+            f"Error fetching verified validators from table Validators"
         ) from e
 
 
-def fetch_unverified_vals() -> list[str]:
+def fetch_unverified_vals() -> list[tuple]:
     """Fetches the data of the validators that are in the proposed state.
 
     Returns:
@@ -325,14 +353,14 @@ def fetch_unverified_vals() -> list[str]:
             )
             unverified_vals: list[tuple] = db.fetchall()
             log.info(
-                f"{len(unverified_vals)} new verified public keys are detected."
+                f"{len(unverified_vals)} new unverified validators are detected."
             )
             log.debug(",".join(map(str, unverified_vals)))
 
             return unverified_vals
     except Exception as e:
         raise DatabaseError(
-            f"Error fetching validators from table Validators"
+            f"Error fetching unverified validators from table Validators"
         ) from e
 
 

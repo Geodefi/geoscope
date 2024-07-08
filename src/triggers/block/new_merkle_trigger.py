@@ -11,6 +11,7 @@ from src.helpers import (
     save_beacon_balances,
     get_all_pool_ids,
     fetch_balances_by_pool_id_batch,
+    fetch_active_vals,
 )
 from src.utils import multithread, get_epoch
 from src.actions import call_reportBeacon
@@ -36,15 +37,17 @@ class NewMerkleTrigger(Trigger):
         create_validators_table()
         log.debug(f"{self.name} is initated.")
 
-    def __update_beacon_balances(self, pk_list: list):
+    def __update_beacon_balances(self, vals: list[tuple]):
         epoch = get_epoch()["epoch"]
         beacon_balances = multithread(
-            self.__process_beacon_balance, pk_list, repeat(epoch)
+            self.__process_beacon_balance, vals, repeat(epoch)
         )
         if beacon_balances:
-            save_beacon_balances(pk_list, beacon_balances)
+            save_beacon_balances(vals, beacon_balances)
 
-    def __process_beacon_balance(self, pubkey: str, current_epoch: str) -> str:
+    def __process_beacon_balance(
+        self, pk_index_tuple: tuple, current_epoch: str
+    ) -> str:
         # THERE CAN BE 2 TYPE OF VALIDATORS HERE:
         #
         # 1. Deposited 31 eth, have not been reflected yet : beacon.status = deposited, pending:
@@ -55,7 +58,8 @@ class NewMerkleTrigger(Trigger):
         # -> utilize beacon(validator).balance
         # -> check if slashed or exited : then beacon_balance is assumed to be ZERO !important
 
-        v = SDK.portal.validator(pubkey)
+        # pk_index_tuple[0] is the pubkey
+        v = SDK.portal.validator(pk_index_tuple[0])
         status = v.beacon_status
         balance = v.balance
         # withdrawn = v.total_withdrawals
@@ -90,6 +94,7 @@ class NewMerkleTrigger(Trigger):
         secured = pool.secured
         # TODO_task: TAKE THE LATEST GIVEN BLOCK WHEN CALCULATING
         supply = SDK.token.contract.functions.totalSupply(int(id)).call()
+        # TODO: create fetch balance for id function to use below
         price = (
             (
                 (
@@ -129,11 +134,11 @@ class NewMerkleTrigger(Trigger):
         # TODO: merkle implementation
 
         # get all active pks and their beacon_index (will use it while updating withdrawn balances)
-        # from the database (discuss which states count as active)
-        pk_list, beacon_indexes = list(), list()
+        # TODO: from the database (discuss which states count as active)
+        active_vals: list[tuple] = fetch_active_vals()
 
         # update beacon balances
-        self.__update_beacon_balances(pk_list)
+        self.__update_beacon_balances(active_vals)
 
         # update withdrawn balances
 
