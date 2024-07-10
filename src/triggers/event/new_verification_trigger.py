@@ -11,6 +11,7 @@ from src.helpers import (
     fetch_unverified_vals,
     create_stake_proposal_table,
     create_validators_table,
+    update_geonius_verification_pks,
 )
 from src.actions import call_updateVerificationIndex
 
@@ -35,7 +36,9 @@ class NewVerificationTrigger(Trigger):
         create_stake_proposal_table()
         log.debug(f"{self.name} is initated.")
 
-    def validate_proposals(self, vals: list[tuple]) -> tuple:
+    def validate_proposals(
+        self, vals: list[tuple], current_block_ts: int
+    ) -> tuple:
         """
         Validates the proposals of the validators.
         Args:
@@ -46,21 +49,33 @@ class NewVerificationTrigger(Trigger):
             tuple: Tuple of new verification index and invalid public keys.
         """
 
+        valid_pks = []
         invalid_pks = []
-        for pk, index, pool_id, sig31 in vals:
-            status = self.validate_proposal(pk, pool_id, sig31)
+        pending_pks = []
+        len_pending_pks_when_index_set = 0
+        new_verification_index = None
+        for pk, index, pool_id, sig31, wc in vals:
+            status = self.validate_proposal(
+                pk, pool_id, sig31, wc, current_block_ts
+            )
 
             if status == 0:
                 invalid_pks.append(pk)
             elif status == 1:
+                valid_pks.append(pk)
                 new_verification_index = index
+                len_pending_pks_when_index_set = len(pending_pks)
             elif status == 2:
-                # TODO: what to do with pending proposals? Is it possible for a bigger index to be not pending? I hope not.
-                break
+                pending_pks.append(pk)
 
-        return new_verification_index, invalid_pks
+        # adding the pending pks to invalid pks that were still pending when larger index was verified
+        invalid_pks.extend(pending_pks[:len_pending_pks_when_index_set])
 
-    def validate_proposal(self, pk: str, pool_id: str, sig31: str) -> int:
+        return new_verification_index, valid_pks, invalid_pks
+
+    def validate_proposal(
+        self, pk: str, pool_id: str, sig31: str, wc: str, current_block_ts: int
+    ) -> int:
         """
         Validates a proposal as pending/valid/invalid:
         1. Validator's state on Portal is PROPOSED
@@ -73,64 +88,39 @@ class NewVerificationTrigger(Trigger):
             pk (str): Public key of the validator.
             pool_id (str): Pool ID of the validator.
             sig31 (str): Signature 31 of the validator.
+            wc (str): Withdrawal credentials of the validator. (comes from beacon chain)
 
         Returns:
             int: Proposal status. (0: invalid, 1: valid, 2: pending)
         """
 
         val = SDK.portal.validator(pk)
+        pool = SDK.portal.pool(int(pool_id))
 
         # case 1
         if val.state != VALIDATOR_STATE.PROPOSED:
             return 0
 
         # case 2
-        try:
-            # TODO: check if this is the correct way to get deposits
-            # Until now there are 2 ways I found to get deposits:
-            # 1.  tracking all the blocks on beacon chain with block or time trigger
-            #     and checking for deposits and storing them in the db for later use
-            # 2.  creating an event trigger from the ethereum deposit contract and
-            #     fetch the DepositEvent(pubkey, withdrawal_credentials, amount, signature, to_little_endian_64(uint64(deposit_count))
-            #     and storing them in the db for later use
-            deposits = SDK.beacon.beacon_deposit_snapshot(pk)
-        except Exception as e:
-            # TODO: it may not be pending, but failed to get deposits
-            #       need to check if it is pending or not some other way
-            log.error(
-                f"Failed to get deposits for {pk} (probably pending): {e}"
-            )
+        # TODO: instead of last_new_block, fetch the current block number??
+        if current_block_ts - deposit["block_number"] < MIN_BLOCK_DELAY:
             return 2
 
-        if len(deposits) != 1:
-            return 0
-
-        deposit = deposits[0]
+        # get withdrawal credential of pool from Portal
+        pool_wc = pool.withdrawalCredential
 
         # case 3
-        # TODO: instead of last_new_block, fetch the current block number??
-        if last_new_block - deposit["block_number"] < MIN_BLOCK_DELAY:
-            return 2
-
-        # get withdrawal credential
-        wc = SDK.portal.pool(int(pool_id)).withdrawalCredential[2:]
-
-        # - sig1
-        if not validate_parameters(
-            pubkey=pk[2:],
-            withdrawal_credentials=wc[2:],
-            amount=DEPOSIT_SIZE.PROPOSAL,
-            signature=sig1[
-                2:
-            ],  # deposit["signature"][2:],  # TODO: get sig1 from db here or fetch beforehand and pass it as an argument?
-            fork_version=GENESIS_FORK_VERSION[SDK.network.name],
+        if not (
+            val.balance == 1e9
+            and val.withdrawal_credentials == wc  # wc is same on beacon chain
+            and wc == pool_wc  # correct wc is given to beacon chain
         ):
             return 0
 
         # - sig31
         if not validate_parameters(
             pubkey=pk[2:],
-            withdrawal_credentials=wc[2:],
+            withdrawal_credentials=pool_wc[2:],
             amount=DEPOSIT_SIZE.STAKE,
             signature=sig31[2:],
             fork_version=GENESIS_FORK_VERSION[SDK.network.value],
@@ -138,6 +128,33 @@ class NewVerificationTrigger(Trigger):
             return 0
 
         return 1
+
+    def should_update_chain(self, current_block_ts: int) -> bool:
+        """
+        CONDITIONS:
+        1. any validator have been waiting for > MAX_VERIFICATION_DELAY
+        OR
+        2. has there been > PENDING_PROPOSALS_THRESHOLD validator proposals AND it has been > MIN_VERIFICATION_DELAY since the last proposal
+        """
+        MAX_VERIFICATION_DELAY = 24 * 60 * 60  # 24 hours
+        MIN_VERIFICATION_DELAY = 6 * 60 * 60  # 6 hour
+        PENDING_PROPOSALS_THRESHOLD = 10
+
+        # TODO: from db fetch all vals that are ready to be verified on chain
+        #       select smallest timestamp and largest timestamp to check below and return true if any of the conditions are met
+        #       also fetch the number of pending proposals to be verified
+
+        earliest_ts = 0  # fetch from db
+        if current_block_ts >= earliest_ts + MAX_VERIFICATION_DELAY:
+            return True
+
+        latest_ts = 9999  # fetch from db
+        if current_block_ts >= latest_ts + MIN_VERIFICATION_DELAY:
+            valid_proposal_count = 3  # fetch from db
+            if valid_proposal_count >= PENDING_PROPOSALS_THRESHOLD:
+                return True
+
+        return False
 
     def check_new_validators(self, *args, **kwargs) -> None:
         """The action! Check for new proposals, update if triggered.
@@ -154,8 +171,28 @@ class NewVerificationTrigger(Trigger):
         # fetch pubkey, portal_index, pool_id, signature31 in this order from the db --> need to handle sig1 at some point
         vals: list[tuple] = fetch_unverified_vals()
 
-        new_verification_index, invalid_pks = self.validate_proposals(vals)
+        current_block_ts = SDK.w3.eth.get_block("latest")["timestamp"]
+
+        new_verification_index, valid_pks, invalid_pks = (
+            self.validate_proposals(vals, current_block_ts)
+        )
+
+        update_geonius_verification_pks(valid_pks, "valid")
+        update_geonius_verification_pks(invalid_pks, "invalid")
+
+        # TODO: fetch invalid pks from db and max verification index from db
+
+        current_verification_index = 1  # fetch from db
+        # if there is no new verification index, then the new verification index is the same as the current one
+        if new_verification_index is None:
+            new_verification_index = current_verification_index
 
         # TODO: should update chain check should be implemented for MAX_VERIFICATION_DELAY and PENDING_PROPOSALS_THRESHOLD, MIN_VERIFICATION_DELAY
+        # TODO: if deposits are fetched somehow, then save timestamp/slot for them and check from that time
 
-        call_updateVerificationIndex(new_verification_index, invalid_pks)
+        is_valid_to_push = False
+        if len(invalid_pks) == 0:
+            is_valid_to_push = self.should_update_chain(current_block_ts)
+
+        if is_valid_to_push:
+            call_updateVerificationIndex(new_verification_index, invalid_pks)

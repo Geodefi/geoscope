@@ -36,6 +36,7 @@ from .db_validators import (
     save_portal_state,
     save_exit_epoch,
     save_beacon_balances,
+    update_geonius_verification_pks,
     fetch_active_vals,
     fetch_verified_pks,
     fetch_unverified_vals,

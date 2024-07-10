@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+from datetime import datetime
 from itertools import repeat
 from geodefi.globals import VALIDATOR_STATE
 
@@ -38,6 +39,7 @@ def create_validators_table() -> None:
                     withdrawn_balance TEXT,
                     fee_recepient_balance TEXT,
                     geoscope_verification TEXT NOT NULL DEFAULT 'pending',
+                    geoscope_verification_timestamp INTEGER NOT NULL DEFAULT 0,
                 )
                 """
             )
@@ -264,6 +266,38 @@ def save_beacon_balances(pubkeys: list[str], balances: list[str]) -> None:
         ) from e
 
 
+def update_geonius_verification_pks(
+    pubkeys: list[str], geonius_verification: str
+) -> None:
+    """Updates the verification index of the given public keys.
+
+    Args:
+        pubkeys (list[str]): public keys of the validators
+        geonius_verification (str): verification status of the validators either valid or invalid
+
+    Raises:
+        DatabaseError: Error updating verification index of validators
+    """
+
+    try:
+        ts = int(datetime.now().timestamp())
+        with Database() as db:
+            db.executemany(
+                """
+                UPDATE Validators 
+                SET geonius_verification = ?,
+                geonius_verification_timestamp = ? 
+                WHERE pubkey = ?
+                """,
+                zip(repeat(geonius_verification), repeat(ts), pubkeys),
+            )
+        log.debug(f"Updated verification index of {len(pubkeys)} validators")
+    except Exception as e:
+        raise DatabaseError(
+            f"Error updating geonius_verification and its timestamp of validators {pubkeys} to table Validators"
+        ) from e
+
+
 def fetch_active_vals() -> list[tuple]:
     """Fetches the data of the validators that are staked and active.
 
@@ -344,7 +378,7 @@ def fetch_unverified_vals() -> list[tuple]:
             # TODO: check if portal_index should be > or >=
             db.execute(
                 """
-                SELECT pubkey, portal_index, pool_id, signature31 FROM Validators 
+                SELECT pubkey, portal_index, pool_id, signature31, withdrawal_credentials FROM Validators 
                 WHERE local_state = ?  
                 AND portal_index > ?
                 ORDER BY portal_index
