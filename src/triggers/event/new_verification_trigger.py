@@ -5,13 +5,25 @@ from geodefi.utils.bls.validate import validate_parameters
 
 from src.classes import Trigger
 from src.logger import log
-from src.globals import SDK, MIN_BLOCK_DELAY
+from src.globals import (
+    SDK,
+    MIN_BLOCK_DELAY,
+    MIN_VERIFICATION_DELAY,
+    MAX_VERIFICATION_DELAY,
+    PENDING_PROPOSALS_THRESHOLD,
+)
 
 from src.helpers import (
     fetch_unverified_vals,
     create_stake_proposal_table,
     create_validators_table,
-    update_geonius_verification_pks,
+    update_geoscope_verification_pks,
+    fetch_valid_val_count,
+    fetch_min_max_ts,
+    get_StakeParams,
+    fetch_new_verification_index,
+    fetch_invalid_pks,
+    update_geoscope_verification_state,
 )
 from src.actions import call_updateVerificationIndex
 
@@ -53,17 +65,14 @@ class NewVerificationTrigger(Trigger):
         invalid_pks = []
         pending_pks = []
         len_pending_pks_when_index_set = 0
-        new_verification_index = None
-        for pk, index, pool_id, sig31, wc in vals:
+        for pk, pool_id, sig31, wc in vals:
             status = self.validate_proposal(
                 pk, pool_id, sig31, wc, current_block_ts
             )
-
             if status == 0:
                 invalid_pks.append(pk)
             elif status == 1:
                 valid_pks.append(pk)
-                new_verification_index = index
                 len_pending_pks_when_index_set = len(pending_pks)
             elif status == 2:
                 pending_pks.append(pk)
@@ -71,7 +80,7 @@ class NewVerificationTrigger(Trigger):
         # adding the pending pks to invalid pks that were still pending when larger index was verified
         invalid_pks.extend(pending_pks[:len_pending_pks_when_index_set])
 
-        return new_verification_index, valid_pks, invalid_pks
+        return valid_pks, invalid_pks
 
     def validate_proposal(
         self, pk: str, pool_id: str, sig31: str, wc: str, current_block_ts: int
@@ -136,22 +145,15 @@ class NewVerificationTrigger(Trigger):
         OR
         2. has there been > PENDING_PROPOSALS_THRESHOLD validator proposals AND it has been > MIN_VERIFICATION_DELAY since the last proposal
         """
-        MAX_VERIFICATION_DELAY = 24 * 60 * 60  # 24 hours
-        MIN_VERIFICATION_DELAY = 6 * 60 * 60  # 6 hour
-        PENDING_PROPOSALS_THRESHOLD = 10
 
-        # TODO: from db fetch all vals that are ready to be verified on chain
-        #       select smallest timestamp and largest timestamp to check below and return true if any of the conditions are met
-        #       also fetch the number of pending proposals to be verified
+        earliest_ts, latest_ts = fetch_min_max_ts()
 
-        earliest_ts = 0  # fetch from db
         if current_block_ts >= earliest_ts + MAX_VERIFICATION_DELAY:
             return True
 
-        latest_ts = 9999  # fetch from db
         if current_block_ts >= latest_ts + MIN_VERIFICATION_DELAY:
-            valid_proposal_count = 3  # fetch from db
-            if valid_proposal_count >= PENDING_PROPOSALS_THRESHOLD:
+            valid_pending_count: int = fetch_valid_val_count()
+            if valid_pending_count >= PENDING_PROPOSALS_THRESHOLD:
                 return True
 
         return False
@@ -164,35 +166,33 @@ class NewVerificationTrigger(Trigger):
             **kwargs: Arbitrary keyword arguments.
         """
 
-        # if self.__check_new_proposals(fetch_unverified_pks()):
-        #     self.__update_verification_index(changes)
-
         # data is already sorted according to increasing order of portal_index
-        # fetch pubkey, portal_index, pool_id, signature31 in this order from the db --> need to handle sig1 at some point
+        # fetch pubkey, portal_index, pool_id, signature31 in this order from the db
         vals: list[tuple] = fetch_unverified_vals()
 
         current_block_ts = SDK.w3.eth.get_block("latest")["timestamp"]
 
-        new_verification_index, valid_pks, invalid_pks = (
-            self.validate_proposals(vals, current_block_ts)
-        )
+        valid_pks, invalid_pks = self.validate_proposals(vals, current_block_ts)
 
-        update_geonius_verification_pks(valid_pks, "valid")
-        update_geonius_verification_pks(invalid_pks, "invalid")
+        update_geoscope_verification_pks(valid_pks, "valid")
+        update_geoscope_verification_pks(invalid_pks, "invalid")
 
-        # TODO: fetch invalid pks from db and max verification index from db
+        # fetch invalid pks from db
+        invalid_pks = fetch_invalid_pks()
 
-        current_verification_index = 1  # fetch from db
-        # if there is no new verification index, then the new verification index is the same as the current one
-        if new_verification_index is None:
-            new_verification_index = current_verification_index
-
-        # TODO: should update chain check should be implemented for MAX_VERIFICATION_DELAY and PENDING_PROPOSALS_THRESHOLD, MIN_VERIFICATION_DELAY
         # TODO: if deposits are fetched somehow, then save timestamp/slot for them and check from that time
+        is_valid_to_push = self.should_update_chain(current_block_ts)
 
-        is_valid_to_push = False
-        if len(invalid_pks) == 0:
-            is_valid_to_push = self.should_update_chain(current_block_ts)
-
-        if is_valid_to_push:
+        if is_valid_to_push or len(invalid_pks) > 0:
+            # max verification index from db
+            new_verification_index: int = fetch_new_verification_index()
+            if new_verification_index is None:
+                # get current index as new index
+                new_verification_index: int = get_StakeParams()[4]
             call_updateVerificationIndex(new_verification_index, invalid_pks)
+
+            # update db
+            update_geoscope_verification_state(
+                "onchain", "valid", new_verification_index
+            )
+            update_geoscope_verification_state("onchain", "invalid")

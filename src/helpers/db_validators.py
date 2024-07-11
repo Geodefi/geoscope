@@ -266,14 +266,14 @@ def save_beacon_balances(pubkeys: list[str], balances: list[str]) -> None:
         ) from e
 
 
-def update_geonius_verification_pks(
-    pubkeys: list[str], geonius_verification: str
+def update_geoscope_verification_pks(
+    pubkeys: list[str], geoscope_verification: str
 ) -> None:
     """Updates the verification index of the given public keys.
 
     Args:
         pubkeys (list[str]): public keys of the validators
-        geonius_verification (str): verification status of the validators either valid or invalid
+        geoscope_verification (str): verification status of the validators either valid or invalid
 
     Raises:
         DatabaseError: Error updating verification index of validators
@@ -285,16 +285,189 @@ def update_geonius_verification_pks(
             db.executemany(
                 """
                 UPDATE Validators 
-                SET geonius_verification = ?,
-                geonius_verification_timestamp = ? 
+                SET geoscope_verification = ?,
+                geoscope_verification_timestamp = ? 
                 WHERE pubkey = ?
                 """,
-                zip(repeat(geonius_verification), repeat(ts), pubkeys),
+                zip(repeat(geoscope_verification), repeat(ts), pubkeys),
             )
         log.debug(f"Updated verification index of {len(pubkeys)} validators")
     except Exception as e:
         raise DatabaseError(
-            f"Error updating geonius_verification and its timestamp of validators {pubkeys} to table Validators"
+            f"Error updating geoscope_verification and its timestamp of validators {pubkeys} to table Validators"
+        ) from e
+
+
+def update_geoscope_verification_state(
+    new_verification_state: str,
+    old_verification_state: str,
+    new_verification_index: int = None,
+) -> None:
+    """Updates validators upto the verification index.
+
+    Args:
+        new_verification_index (int): new verification index
+
+    Raises:
+        DatabaseError: Error updating verification index of validators
+    """
+
+    # TODO: discuss if not checking local_state here is correct
+    try:
+        if new_verification_index is None:
+            with Database() as db:
+                db.execute(
+                    """
+                    UPDATE Validators 
+                    SET geoscope_verification = ?
+                    WHERE geoscope_verification = ?
+                    """,
+                    (new_verification_state, old_verification_state),
+                )
+        else:
+            with Database() as db:
+                db.execute(
+                    """
+                    UPDATE Validators 
+                    SET geoscope_verification = ?
+                    WHERE portal_index < ?
+                    AND geoscope_verification = ?
+                    """,
+                    (
+                        new_verification_state,
+                        new_verification_index,
+                        old_verification_state,
+                    ),
+                )
+        log.debug(f"Updated verification index of validators in proposed state")
+    except Exception as e:
+        raise DatabaseError(
+            f"Error updating verification index of validators in proposed state to table Validators"
+        ) from e
+
+
+def fetch_invalid_pks() -> list[str]:
+    """Fetches the data of the validators that are in the proposed state.
+
+    Returns:
+        list[str]: list of public keys of validators in proposed state
+
+    Raises:
+        DatabaseError: Error fetching validators from table
+    """
+    verification_index: int = get_StakeParams()[4]
+
+    try:
+        with Database() as db:
+            db.execute(
+                """
+                SELECT pubkey FROM Validators 
+                WHERE local_state = ?  
+                AND portal_index < ?
+                AND geoscope_verification = ?
+                ORDER BY pool_id
+                """,
+                (int(VALIDATOR_STATE.PROPOSED), verification_index, "invalid"),
+            )
+            invalid_pks: list[str] = db.fetchall()
+            log.info(f"{len(invalid_pks)} invalid public keys are fetched.")
+            log.debug(",".join(map(str, invalid_pks)))
+
+            return invalid_pks
+    except Exception as e:
+        raise DatabaseError(
+            f"Error fetching invalid validators from table Validators"
+        ) from e
+
+
+def fetch_new_verification_index() -> int:
+    """Fetches the new verification index from the database.
+
+    Returns:
+        int: new verification index
+
+    Raises:
+        DatabaseError: Error fetching new verification index from table
+    """
+
+    try:
+        with Database() as db:
+            db.execute(
+                """
+                SELECT MAX(portal_index) 
+                FROM Validators
+                WHERE local_state = ?
+                AND geoscope_verification = ?
+                """,
+                (int(VALIDATOR_STATE.PROPOSED), "valid"),
+            )
+            return db.fetchone()[0]
+    except Exception as e:
+        raise DatabaseError(
+            f"Error fetching new verification index from table Validators"
+        ) from e
+
+
+def fetch_min_max_ts() -> tuple:
+    """Fetches the minimum and maximum timestamp of the validators in the database.
+
+    Returns:
+        tuple: tuple containing the minimum and maximum timestamp
+    """
+
+    verification_index: int = get_StakeParams()[4]
+
+    try:
+        with Database() as db:
+            db.execute(
+                """
+                SELECT MIN(geoscope_verification_timestamp), MAX(geoscope_verification_timestamp)
+                FROM Validators
+                WHERE geoscope_verification_timestamp > 0
+                AND local_state = ?
+                AND portal_index < ?
+                AND geoscope_verification = ?
+                """,
+                (int(VALIDATOR_STATE.PROPOSED), verification_index, "valid"),
+            )
+            return db.fetchone()
+    except Exception as e:
+        raise DatabaseError(
+            f"Error fetching min and max timestamp of validators from table Validators"
+        ) from e
+
+
+def fetch_valid_val_count() -> int:
+    """Fetches the count of validators that are verified and valid.
+
+    Returns:
+        int: count of validators in proposed state and verified as valid and still not verified on chain
+
+    Raises:
+        DatabaseError: Error fetching validators from table
+    """
+
+    verification_index: int = get_StakeParams()[4]
+
+    try:
+        with Database() as db:
+            db.execute(
+                """
+                SELECT COUNT(*) FROM Validators 
+                WHERE local_state = ?
+                AND portal_index < ?
+                AND geoscope_verification = ?
+                """,
+                (int(VALIDATOR_STATE.PROPOSED), verification_index, "valid"),
+            )
+            count: int = db.fetchone()[0]
+            log.info(f"{count} valid validators are fetched.")
+            log.debug(count)
+
+            return count
+    except Exception as e:
+        raise DatabaseError(
+            f"Error fetching valid validators from table Validators"
         ) from e
 
 

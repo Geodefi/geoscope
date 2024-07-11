@@ -18,11 +18,11 @@ EVENT_STEP: int = 1_000_000
 # Minimum number of confirmations before processing a validator proposal
 MIN_BLOCK_DELAY: int = 50
 
-# Minimum blocks to wait for at least 5 validators to be proposed
-MIN_VERIFICATION_DELAY: int = 1 * hour_blocks
+# Minimum time to wait for at least 5 validators to be proposed
+MIN_VERIFICATION_DELAY: int = 1 * hour_blocks * 12
 
-# Maximum blocks to wait for any validator proposal
-MAX_VERIFICATION_DELAY: int = 8 * hour_blocks
+# Maximum time to wait for any validator proposal
+MAX_VERIFICATION_DELAY: int = 8 * hour_blocks * 12
 
 # Minimum number of validator proposals before considering approvals with MIN_VERIFICATION_DELAY
 PENDING_PROPOSALS_THRESHOLD: int = 5
