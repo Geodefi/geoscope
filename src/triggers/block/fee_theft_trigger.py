@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
+from src.classes.trigger import Trigger
 from src.logger import log
-from src.classes import Trigger
 
 
 class FeeTheftTrigger(Trigger):

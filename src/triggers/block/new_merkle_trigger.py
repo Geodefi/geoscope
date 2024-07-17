@@ -1,30 +1,29 @@
 # -*- coding: utf-8 -*-
 
 from itertools import repeat
-
 from geodefi.globals import (
     DEPOSIT_SIZE,
     BEACON_DENOMINATOR,
     ETHER_DENOMINATOR,
 )
 
-from src.logger import log
-from src.classes import Trigger
-from src.globals import (
-    SDK,
+from src.classes.trigger import Trigger
+from src.globals.sdk import SDK
+from src.globals.constants import (
     MAX_MERKLE_DELAY_SECONDS,
     PRICE_CHANGE_THRESHOLD_PERCENTAGE,
 )
-from src.helpers import (
+from src.helpers.db_validators import (
     create_validators_table,
     save_beacon_balances,
-    get_all_pool_ids,
     fetch_balances_by_pool_id_batch,
     fetch_active_vals,
-    get_StakeParams,
 )
-from src.utils import multithread, get_epoch
-from src.actions import call_reportBeacon
+from src.helpers.portal import get_StakeParams, get_all_pool_ids
+from src.utils.thread import multithread
+from src.utils.chain import get_epoch
+from src.actions.portal import call_reportBeacon
+from src.logger import log
 
 
 class NewMerkleTrigger(Trigger):

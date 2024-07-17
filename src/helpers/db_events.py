@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 
-from src.classes import Database
-from src.globals import chain
+from src.classes.database import Database
+from src.globals.constants import chain
+from src.exceptions.classes.database import DatabaseError
+from src.common.attribute_dict import AttributeDict
 from src.logger import log
-from src.exceptions import DatabaseError
-from src.common import AttributeDict
 
 
 def find_latest_event(event_name: str) -> AttributeDict:

@@ -5,7 +5,7 @@ from typing import Callable
 from threading import Thread, Event
 
 from src.logger import log
-from src.exceptions import DaemonError
+from src.exceptions.classes.daemon import DaemonError
 from .trigger import Trigger
 
 

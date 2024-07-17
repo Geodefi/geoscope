@@ -1,7 +1,7 @@
 from geode.utils.wrappers import httpRequest
 
-from ..globals.sdk import SDK
-from ..globals.config import CONFIG
+from src.globals.sdk import SDK
+from src.globals.config import CONFIG
 
 
 # getting the block fetching mode from config.json. It is either 'latest' or 'finalized'

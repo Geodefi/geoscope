@@ -3,29 +3,28 @@
 from geodefi.globals import VALIDATOR_STATE, DEPOSIT_SIZE, GENESIS_FORK_VERSION
 from geodefi.utils.bls.validate import validate_parameters
 
-from src.classes import Trigger
-from src.logger import log
-from src.globals import (
-    SDK,
+from src.classes.trigger import Trigger
+from src.globals.sdk import SDK
+from src.globals.constants import (
     MIN_BLOCK_DELAY,
     MIN_VERIFICATION_DELAY,
     MAX_VERIFICATION_DELAY,
     PENDING_PROPOSALS_THRESHOLD,
 )
-
-from src.helpers import (
+from src.helpers.db_validators import (
     fetch_unverified_vals,
-    create_stake_proposal_table,
     create_validators_table,
     update_geoscope_verification_pks,
+    update_geoscope_verification_state,
     fetch_valid_val_count,
     fetch_min_max_ts,
-    get_StakeParams,
     fetch_new_verification_index,
     fetch_invalid_pks,
-    update_geoscope_verification_state,
 )
-from src.actions import call_updateVerificationIndex
+from src.helpers.db_events import create_stake_proposal_table
+from src.helpers.portal import get_StakeParams
+from src.actions.portal import call_updateVerificationIndex
+from src.logger import log
 
 
 # TODO: this wont be an event trigger, will be a block trigger, need to move it

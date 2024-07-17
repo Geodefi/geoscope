@@ -2,7 +2,7 @@
 
 import json
 
-from src.common import AttributeDict
+from src.common.attribute_dict import AttributeDict
 
 # catch configuration variables
 config_dict: dict = json.load(open("config.json"))

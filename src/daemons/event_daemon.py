@@ -3,13 +3,18 @@
 from typing import Iterable
 from web3.types import EventData
 from web3.contract.contract import ContractEvent
-from src.classes import Daemon, Trigger
-from src.globals import SDK, chain
 
 from src.logger import log
-from src.helpers import get_all_events, find_latest_event
+from src.classes.daemon import Daemon
+from src.classes.trigger import Trigger
+from src.globals.sdk import SDK
+from src.globals.constants import chain
+from src.helpers.event import get_all_events
+from src.helpers.db_events import find_latest_event
+from src.common.attribute_dict import AttributeDict
+
+# TODO: import send_email from src.utils
 from src.utils import send_email
-from src.common import AttributeDict
 
 
 class EventDaemon(Daemon):
@@ -53,7 +58,9 @@ class EventDaemon(Daemon):
         self.block_identifier: str = chain.identifier
         self.block_period: int = int(chain.period)
 
-        self.__last_snapshot: AttributeDict = find_latest_event(event.event_name)
+        self.__last_snapshot: AttributeDict = find_latest_event(
+            event.event_name
+        )
         log.debug(f"{trigger.name} is attached to an Event Daemon")
 
     def filter_known_events(self, e: EventData) -> bool:
@@ -93,7 +100,9 @@ class EventDaemon(Daemon):
                 )
 
                 # take a snapshot from db before filtering (potentially) new events.
-                self.__last_snapshot: int = find_latest_event(self.event.event_name)
+                self.__last_snapshot: int = find_latest_event(
+                    self.event.event_name
+                )
                 unknown_events: list[EventData] = list(
                     filter(
                         self.filter_known_events,
@@ -103,12 +112,20 @@ class EventDaemon(Daemon):
 
             except Exception as e:
                 log.error(e)
-                send_email(e.__class__.__name__, str(e), [("<file_path>", "<file_name>.log")])
+                send_email(
+                    e.__class__.__name__,
+                    str(e),
+                    [("<file_path>", "<file_name>.log")],
+                )
 
             # take a snapshot after finishing processing the block.\
             # Does not matter if there are events or not.
             self.__last_snapshot = AttributeDict.convert_recursive(
-                {"block_number": curr_block, "transaction_index": 0, "log_index": 0}
+                {
+                    "block_number": curr_block,
+                    "transaction_index": 0,
+                    "log_index": 0,
+                }
             )
 
             if unknown_events:

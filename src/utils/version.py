@@ -1,6 +1,6 @@
 import sys
 
-from src.exceptions import PythonVersionException
+from src.exceptions.utils.version import PythonVersionException
 
 
 def check_python_version() -> None:

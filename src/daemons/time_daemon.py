@@ -1,7 +1,9 @@
 # -*- coding: utf-8 -*-
 
 from typing_extensions import Self
-from src.classes import Daemon, Trigger
+
+from src.classes.daemon import Daemon
+from src.classes.trigger import Trigger
 from src.logger import log
 
 
@@ -16,7 +18,9 @@ class TimeDaemon(Daemon):
         b = TimeDaemon(trigger=t)
     """
 
-    def __init__(self, interval: int, trigger: Trigger, initial_delay: int) -> None:
+    def __init__(
+        self, interval: int, trigger: Trigger, initial_delay: int
+    ) -> None:
         Daemon.__init__(
             self,
             interval=interval,

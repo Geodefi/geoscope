@@ -5,9 +5,12 @@ from itertools import repeat
 from geodefi.globals import ID_TYPE
 from geodefi.utils import to_bytes32, get_key
 
-from src.globals import SDK, OPERATOR_ID
+from src.globals.sdk import SDK
+
+# TODO: get operator_id from config
+from src.globals.config import OPERATOR_ID
+from src.utils.thread import multithread
 from src.logger import log
-from src.utils import multithread
 
 
 # pylint: disable-next=invalid-name

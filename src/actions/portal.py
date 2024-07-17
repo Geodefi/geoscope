@@ -3,8 +3,9 @@
 from web3.types import TxReceipt
 from web3.exceptions import TimeExhausted
 
-from src.globals import SDK, PRIVATE_KEY
-from src.exceptions import CallFailedError
+from src.globals.sdk import SDK
+from src.globals.env import PRIVATE_KEY
+from src.exceptions.actions.portal import CallFailedError
 from src.logger import log
 from src.utils import get_gas
 

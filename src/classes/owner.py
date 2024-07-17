@@ -1,26 +1,26 @@
-
 from hexbytes import HexBytes
 from eth_typing import ChecksumAddress
 
-from globals.env import PRIVATE_KEY
-from globals.w3 import W3
-from globals.exceptions import InvalidPrivateKeyException
+from src.globals.env import PRIVATE_KEY
+from src.globals.sdk import SDK
+from src.exceptions.globals.sdk import InvalidPrivateKeyError
 
 
 class Owner(object):
 
     def __init__(self):
-        if (PRIVATE_KEY is None):
+        if PRIVATE_KEY is None:
             self.address = "OWNER_PRIVATE_KEY_WAS_NOT_PROVIDED"
         else:
             try:
-                address = W3.eth.account.from_key(PRIVATE_KEY).address
-            except:
-                raise InvalidPrivateKeyException(
-                    "Oracle object cannot be created due to Invalid Private Key")
+                address = SDK.w3.eth.account.from_key(PRIVATE_KEY).address
+            except Exception as e:
+                raise InvalidPrivateKeyError(
+                    "Oracle object cannot be created due to Invalid Private Key"
+                ) from e
 
-            if not W3.is_checksum_address(address):
-                address = W3.to_checksum_address(address)
+            if not SDK.w3.is_checksum_address(address):
+                address = SDK.w3.to_checksum_address(address)
 
             self.private_key = PRIVATE_KEY
             self.address = address
@@ -38,10 +38,10 @@ class Owner(object):
         """
         returns: the balance of the account
         """
-        return W3.eth.get_balance(self.address)
+        return SDK.w3.eth.get_balance(self.address)
 
     def getNonce(self) -> int:
         """
         returns: the nonce value (transaction count)
         """
-        return W3.eth.get_transaction_count(self.address)
+        return SDK.w3.eth.get_transaction_count(self.address)

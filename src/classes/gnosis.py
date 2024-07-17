@@ -11,18 +11,17 @@ from eth_abi import encode, is_encodable
 from eth_typing import ChecksumAddress
 from hexbytes import HexBytes
 
-from globals.exceptions import (
-    WatcherException,
-    ContractCreationException,
-    CheckSumException,
+from src.exceptions.classes.gnosis import (
+    WatcherError,
+    ContractCreationError,
 )
-from globals.config import CONFIG
-from globals.w3 import W3
-from globals.constants import NULL_ADDRESS, WATCHER_URLS, ATTEMPT
+from src.globals.config import CONFIG
+from src.globals.sdk import SDK
+from src.globals.constants import NULL_ADDRESS, WATCHER_URLS, ATTEMPT
 
 # from script.helpers import gasPrice
 
-from classes.owner import Owner
+from .owner import Owner
 
 
 class Gnosis(object):
@@ -47,23 +46,23 @@ class Gnosis(object):
         # Get address and abi from json
         try:
             address = abi["address"]
-            if not W3.is_checksum_address(address):
-                address = W3.to_checksum_address(address)
+            if not SDK.w3.is_checksum_address(address):
+                address = SDK.w3.to_checksum_address(address)
 
             self.safe_address: ChecksumAddress = address
             self.abi = abi["abi"]
 
         except KeyError:
-            raise ContractCreationException(
+            raise ContractCreationError(
                 "GeodeFinance: Please provide correct Gnosis abi and contract address in abi/.json"
             )
 
         try:
-            self.gnosisContract: Contract = W3.eth.contract(
+            self.gnosisContract: Contract = SDK.w3.eth.contract(
                 abi=self.abi, address=self.safe_address
             )
         except:
-            raise ContractCreationException(
+            raise ContractCreationError(
                 "GeodeFinance: Gnosis- Invalid ABI or Contract Address"
             )
 
@@ -193,12 +192,12 @@ class Gnosis(object):
                         sleep(1)
                         count += 1
                     else:
-                        raise WatcherException(
+                        raise WatcherError(
                             f"GeodeFinance: Couldn't get the data after {count} attempts."
                         )
 
             if res.status_code == 500:
-                raise WatcherException(f"The status code is {res.status_code}.")
+                raise WatcherError(f"The status code is {res.status_code}.")
 
             # def parseResponse():
             #    # TODO BE IMPLEMENTED (and moved to somewhere else)
@@ -239,7 +238,7 @@ class Gnosis(object):
         :returns: hex-encoded transaction hash
         """
 
-        return W3.to_hex(
+        return SDK.w3.to_hex(
             self.gnosisContract.functions.getTransactionHash(
                 to,
                 0,  # value
@@ -278,11 +277,11 @@ class Gnosis(object):
         tx["nonce"] = self.caller.getNonce()
         privateKey = self.caller.getPrivateKey()
 
-        signed = W3.eth.account.sign_transaction(tx, privateKey)
-        tx_hash = W3.eth.sendRawTransaction(signed.rawTransaction)
+        signed = SDK.w3.eth.account.sign_transaction(tx, privateKey)
+        tx_hash = SDK.w3.eth.sendRawTransaction(signed.rawTransaction)
 
         # LOGGER.debug("TX has been sent. Waiting for receipt...")
-        tx_receipt = W3.eth.waitForTransactionReceipt(tx_hash)
+        tx_receipt = SDK.w3.eth.waitForTransactionReceipt(tx_hash)
 
         if tx_receipt.status == 1:
             # LOGGER.info(

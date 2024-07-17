@@ -4,9 +4,9 @@ import os
 import sqlite3 as sql
 from typing import Any
 
-from src.globals import CONFIG
+from src.globals.config import CONFIG
 from src.logger import log
-from src.exceptions import DatabaseError
+from src.exceptions.classes.database import DatabaseError
 
 
 class Database:

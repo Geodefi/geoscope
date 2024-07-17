@@ -7,3 +7,7 @@ class SDKError(Exception):
 
 class MissingPrivateKeyError(SDKError):
     """Exception raised for errors when the private key is missing."""
+
+
+class InvalidPrivateKeyError(SDKError):
+    """Exception raised for errors when the private key is invalid."""

@@ -5,8 +5,7 @@ import sys
 from geodefi import Geode
 from web3.middleware import construct_sign_and_send_raw_middleware
 
-from src.exceptions import MissingPrivateKeyError
-
+from src.exceptions.globals.sdk import MissingPrivateKeyError
 from .env import EXECUTION_API, CONSENSUS_API, PRIVATE_KEY
 
 

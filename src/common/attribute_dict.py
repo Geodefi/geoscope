@@ -31,7 +31,9 @@ class AttributeDict(dict):
         """
         if i == 0:
             if not isinstance(d, dict):
-                raise TypeError(f"When converting into AttributeDict, expected dict got {type(d)} ")
+                raise TypeError(
+                    f"When converting into AttributeDict, expected dict got {type(d)} "
+                )
 
         for k, v in d.items():
             if isinstance(v, dict):
