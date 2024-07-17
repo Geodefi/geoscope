@@ -619,7 +619,9 @@ def fetch_pool_id(pubkey: str) -> str:
 #       like returns a list of dicts
 
 
-def fetch_balances_by_pool_id(pool_id: str, validator_states: list) -> dict:
+def fetch_balances_by_pool_id(
+    pool_id: str, validator_states: list
+) -> list[tuple]:
     """Fetches the balances of the validators with the given pool_id.
 
     Args:
@@ -627,7 +629,7 @@ def fetch_balances_by_pool_id(pool_id: str, validator_states: list) -> dict:
         validator_states (list): list of states that the validators should have
 
     Returns:
-        dict: dictionary containing the balances of the validators
+        list: list of tuples containing the balances of the validators
     """
 
     try:
@@ -639,7 +641,7 @@ def fetch_balances_by_pool_id(pool_id: str, validator_states: list) -> dict:
                 WHERE pool_id = ?
                 AND beacon_state IN ({"?" * len(validator_states)})
                 """,
-                [pool_id] + validator_states,
+                tuple([pool_id] + validator_states),
             )
             return db.fetchall()
     except Exception as e:
@@ -650,7 +652,7 @@ def fetch_balances_by_pool_id(pool_id: str, validator_states: list) -> dict:
 
 def fetch_balances_by_pool_id_batch(
     pool_ids: list[str], validator_states: list
-) -> dict:
+) -> list[tuple]:
     """Fetches the balances of the validators with the given pool_ids.
 
     Args:
@@ -658,7 +660,7 @@ def fetch_balances_by_pool_id_batch(
         validator_states (list): list of states that the validators should have
 
     Returns:
-        dict: dictionary containing the balances of the validators
+        list: list of tuples containing the balances of the validators
     """
 
     return multithread(
