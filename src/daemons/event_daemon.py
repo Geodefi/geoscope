@@ -6,11 +6,10 @@ from web3.contract.contract import ContractEvent
 
 from src.classes import Daemon, Trigger
 from src.common import AttributeDict
-from src.globals.sdk import SDK
+from src.globals import get_logger, get_sdk
 from src.globals.constants import chain
 from src.helpers.event import get_all_events
-from src.helpers.db_events import find_latest_event
-from src.globals import get_logger
+from src.database.events import find_latest_event
 
 # TODO: import send_email from src.utils.notify
 from src.utils.notifications import send_email
@@ -84,7 +83,9 @@ class EventDaemon(Daemon):
 
         # eth.block_number or eth.get_block_number() can also be used
         # but this allows block_identifier.
-        curr_block: int = (SDK.w3.eth.get_block(self.block_identifier)).number
+        curr_block: int = (
+            get_sdk().w3.eth.get_block(self.block_identifier)
+        ).number
         get_logger().debug(f"Processing Block: {curr_block}")
 
         # check if required number of blocks have past:

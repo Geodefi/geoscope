@@ -2,12 +2,11 @@
 
 from geode.utils.wrappers import httpRequest
 
-from src.globals.sdk import SDK
-from src.globals.config import CONFIG
+from src.globals import get_sdk, get_config
 
 
 # getting the block fetching mode from config.json. It is either 'latest' or 'finalized'
-block_mode = CONFIG.chains[SDK.network.name].mode
+block_mode = get_config().chains[get_sdk().network.name].mode
 
 # TODO: need to add these into the SDK and use from there
 
@@ -18,7 +17,11 @@ def get_epoch(epoch: int or str = block_mode) -> str:
     returns the corresponding epoch
     an epoch number can be specified, if not block_mode is applied
     """
-    return SDK.Beacon.api_base + f"epoch/{epoch}" + SDK.Beacon.api_suffix
+    return (
+        get_sdk().Beacon.api_base
+        + f"epoch/{epoch}"
+        + get_sdk().Beacon.api_suffix
+    )
 
 
 @httpRequest
@@ -27,7 +30,11 @@ def get_slots(epoch: int or str = block_mode) -> str:
     returns the slots of the corresponding epoch
     an epoch number can be specified, if not block_mode is either 'latest' or 'finalized'
     """
-    return SDK.Beacon.api_base + f"epoch/{epoch}/slots" + SDK.Beacon.api_suffix
+    return (
+        get_sdk().Beacon.api_base
+        + f"epoch/{epoch}/slots"
+        + get_sdk().Beacon.api_suffix
+    )
 
 
 def get_block_number() -> int:

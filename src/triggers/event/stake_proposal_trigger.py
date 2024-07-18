@@ -4,11 +4,11 @@ from typing import Iterable
 from web3.types import EventData
 
 from src.classes import Trigger, Database
-from src.helpers.db_validators import (
+from src.database.validators import (
     create_validators_table,
     fill_validators_table,
 )
-from src.helpers.db_events import create_stake_proposal_table
+from src.database.events import create_stake_proposal_table
 from src.helpers.event import event_handler
 from src.exceptions.classes.database import DatabaseError
 from src.globals import get_logger

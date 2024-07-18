@@ -4,8 +4,7 @@ import os
 import sqlite3 as sql
 from typing import Any
 
-from src.globals import get_logger
-from src.globals.config import CONFIG
+from src.globals import get_logger, get_config
 from src.exceptions.classes.database import DatabaseError
 
 
@@ -33,8 +32,8 @@ class Database:
         DatabaseError: Error while connecting to the database.
     """
 
-    main_dir: str = CONFIG.directory
-    db_dir: str = CONFIG.database.directory
+    main_dir: str = get_config().directory
+    db_dir: str = get_config().database.directory
     db_name: str = "operator"
     db_ext: str = ".db"
 

@@ -4,15 +4,16 @@ import sys
 from web3.contract.contract import ContractEvent
 
 from src.common import Loggable
-from src.globals import set_logger
+from src.globals import set_logger, get_sdk
 from src.daemons import BlockDaemon, EventDaemon
 from src.triggers.block import FeeTheftTrigger
 
 # TODO: update triggers with new ones
 from src.triggers.block import MerkleTrigger
 from src.triggers.event import VerificationTrigger
-from src.globals.sdk import SDK
 from src.globals.constants import hour_blocks
+
+# TODO: check all SDK calls in the project
 
 
 def setup_daemons():
@@ -21,7 +22,7 @@ def setup_daemons():
     This function is called at the beginning of the program to make sure the
     daemons are running.
     """
-    events: ContractEvent = SDK.portal.contract.events
+    events: ContractEvent = get_sdk().portal.contract.events
 
     # Triggers
     fee_theft_trigger: FeeTheftTrigger = FeeTheftTrigger()

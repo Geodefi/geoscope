@@ -4,14 +4,14 @@ from geodefi.globals import VALIDATOR_STATE, DEPOSIT_SIZE, GENESIS_FORK_VERSION
 from geodefi.utils.bls.validate import validate_parameters
 
 from src.classes import Trigger
-from src.globals.sdk import SDK
+from src.globals import get_logger, get_sdk
 from src.globals.constants import (
     MIN_BLOCK_DELAY,
     MIN_VERIFICATION_DELAY,
     MAX_VERIFICATION_DELAY,
     PENDING_PROPOSALS_THRESHOLD,
 )
-from src.helpers.db_validators import (
+from src.database.validators import (
     fetch_unverified_vals,
     create_validators_table,
     update_geoscope_verification_pks,
@@ -21,10 +21,9 @@ from src.helpers.db_validators import (
     fetch_new_verification_index,
     fetch_invalid_pks,
 )
-from src.helpers.db_events import create_stake_proposal_table
+from src.database.events import create_stake_proposal_table
 from src.helpers.portal import get_StakeParams
 from src.actions.portal import call_updateVerificationIndex
-from src.globals import get_logger
 
 
 # TODO: this wont be an event trigger, will be a block trigger, need to move it
@@ -102,8 +101,8 @@ class NewVerificationTrigger(Trigger):
             int: Proposal status. (0: invalid, 1: valid, 2: pending)
         """
 
-        val = SDK.portal.validator(pk)
-        pool = SDK.portal.pool(int(pool_id))
+        val = get_sdk().portal.validator(pk)
+        pool = get_sdk().portal.pool(int(pool_id))
 
         # case 1
         if val.state != VALIDATOR_STATE.PROPOSED:
@@ -131,7 +130,7 @@ class NewVerificationTrigger(Trigger):
             withdrawal_credentials=pool_wc[2:],
             amount=DEPOSIT_SIZE.STAKE,
             signature=sig31[2:],
-            fork_version=GENESIS_FORK_VERSION[SDK.network.value],
+            fork_version=GENESIS_FORK_VERSION[get_sdk().network.value],
         ):
             return 0
 
@@ -169,7 +168,7 @@ class NewVerificationTrigger(Trigger):
         # fetch pubkey, portal_index, pool_id, signature31 in this order from the db
         vals: list[tuple] = fetch_unverified_vals()
 
-        current_block_ts = SDK.w3.eth.get_block("latest")["timestamp"]
+        current_block_ts = get_sdk().w3.eth.get_block("latest")["timestamp"]
 
         valid_pks, invalid_pks = self.validate_proposals(vals, current_block_ts)
 

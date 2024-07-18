@@ -3,9 +3,7 @@
 from web3.types import TxReceipt
 from web3.exceptions import TimeExhausted
 
-from src.globals import get_logger
-from src.globals.sdk import SDK
-from src.globals.env import PRIVATE_KEY
+from src.globals import get_logger, get_env, get_sdk
 from src.exceptions.actions.portal import CallFailedError
 from src.utils import get_gas
 
@@ -37,20 +35,26 @@ def call_updateVerificationIndex(
     get_logger().debug("Calling updateVerificationIndex() from portal")
 
     try:
-        tx: dict = SDK.portal.contract.functions.updateVerificationIndex(
-            validator_verification_index, alienated_pubkeys
-        ).build_transaction(get_gas())
+        tx: dict = (
+            get_sdk()
+            .portal.contract.functions.updateVerificationIndex(
+                validator_verification_index, alienated_pubkeys
+            )
+            .build_transaction(get_gas())
+        )
 
-        signed_tx = SDK.w3.eth.account.sign_transaction(tx, PRIVATE_KEY)
-        tx_hash: bytes = SDK.w3.eth.send_raw_transaction(
+        signed_tx = get_sdk().w3.eth.account.sign_transaction(
+            tx, get_env().PRIVATE_KEY
+        )
+        tx_hash: bytes = get_sdk().w3.eth.send_raw_transaction(
             signed_tx.raw_transaction
         )
 
         get_logger().info(f"updateVerificationIndex tx is created: {tx_hash}")
 
         # Wait for the transaction to be mined, and get the transaction receipt
-        tx_receipt: TxReceipt = SDK.portal.w3.eth.wait_for_transaction_receipt(
-            tx_hash
+        tx_receipt: TxReceipt = (
+            get_sdk().portal.w3.eth.wait_for_transaction_receipt(tx_hash)
         )
         get_logger().info(
             f"updateVerificationIndex tx is concluded: {tx_receipt}"
@@ -100,20 +104,26 @@ def call_reportBeacon(
     get_logger().debug("Calling reportBeacon() from portal")
 
     try:
-        tx: dict = SDK.portal.contract.functions.reportBeacon(
-            price_merkle_root, balances_merkle_root, all_validators_count
-        ).build_transaction(get_gas())
+        tx: dict = (
+            get_sdk()
+            .portal.contract.functions.reportBeacon(
+                price_merkle_root, balances_merkle_root, all_validators_count
+            )
+            .build_transaction(get_gas())
+        )
 
-        signed_tx = SDK.w3.eth.account.sign_transaction(tx, PRIVATE_KEY)
-        tx_hash: bytes = SDK.w3.eth.send_raw_transaction(
+        signed_tx = get_sdk().w3.eth.account.sign_transaction(
+            tx, get_env().PRIVATE_KEY
+        )
+        tx_hash: bytes = get_sdk().w3.eth.send_raw_transaction(
             signed_tx.raw_transaction
         )
 
         get_logger().info(f"reportBeacon tx is created: {tx_hash}")
 
         # Wait for the transaction to be mined, and get the transaction receipt
-        tx_receipt: TxReceipt = SDK.portal.w3.eth.wait_for_transaction_receipt(
-            tx_hash
+        tx_receipt: TxReceipt = (
+            get_sdk().portal.w3.eth.wait_for_transaction_receipt(tx_hash)
         )
         get_logger().info(f"reportBeacon tx is concluded: {tx_receipt}")
 
@@ -153,20 +163,24 @@ def call_blameProposal(pk: str) -> bool:
     get_logger().debug("Calling blameProposal() from portal")
 
     try:
-        tx: dict = SDK.portal.contract.functions.blameProposal(
-            pk
-        ).build_transaction(get_gas())
+        tx: dict = (
+            get_sdk()
+            .portal.contract.functions.blameProposal(pk)
+            .build_transaction(get_gas())
+        )
 
-        signed_tx = SDK.w3.eth.account.sign_transaction(tx, PRIVATE_KEY)
-        tx_hash: bytes = SDK.w3.eth.send_raw_transaction(
+        signed_tx = get_sdk().w3.eth.account.sign_transaction(
+            tx, get_env().PRIVATE_KEY
+        )
+        tx_hash: bytes = get_sdk().w3.eth.send_raw_transaction(
             signed_tx.raw_transaction
         )
 
         get_logger().info(f"blameProposal tx is created: {tx_hash}")
 
         # Wait for the transaction to be mined, and get the transaction receipt
-        tx_receipt: TxReceipt = SDK.portal.w3.eth.wait_for_transaction_receipt(
-            tx_hash
+        tx_receipt: TxReceipt = (
+            get_sdk().portal.w3.eth.wait_for_transaction_receipt(tx_hash)
         )
         get_logger().info(f"blameProposal tx is concluded: {tx_receipt}")
 
@@ -213,20 +227,26 @@ def call_blameExit(
     get_logger().debug("Calling blameExit() from portal")
 
     try:
-        tx: dict = SDK.portal.contract.functions.blameExit(
-            pk, beacon_balance, withdrawn_balance, balance_proof
-        ).build_transaction(get_gas())
+        tx: dict = (
+            get_sdk()
+            .portal.contract.functions.blameExit(
+                pk, beacon_balance, withdrawn_balance, balance_proof
+            )
+            .build_transaction(get_gas())
+        )
 
-        signed_tx = SDK.w3.eth.account.sign_transaction(tx, PRIVATE_KEY)
-        tx_hash: bytes = SDK.w3.eth.send_raw_transaction(
+        signed_tx = get_sdk().w3.eth.account.sign_transaction(
+            tx, get_env().PRIVATE_KEY
+        )
+        tx_hash: bytes = get_sdk().w3.eth.send_raw_transaction(
             signed_tx.raw_transaction
         )
 
         get_logger().info(f"blameExit tx is created: {tx_hash}")
 
         # Wait for the transaction to be mined, and get the transaction receipt
-        tx_receipt: TxReceipt = SDK.portal.w3.eth.wait_for_transaction_receipt(
-            tx_hash
+        tx_receipt: TxReceipt = (
+            get_sdk().portal.w3.eth.wait_for_transaction_receipt(tx_hash)
         )
         get_logger().info(f"blameExit tx is concluded: {tx_receipt}")
 

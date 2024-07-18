@@ -4,13 +4,11 @@ from datetime import datetime
 from itertools import repeat
 from geodefi.globals import VALIDATOR_STATE
 
-from src.classes.database import Database
-from src.globals.sdk import SDK
+from src.classes import Database
+from src.globals import get_logger, get_sdk
 from src.utils.thread import multithread
+from src.helpers.portal import get_StakeParams
 from src.exceptions.classes.database import DatabaseError, DatabaseMismatchError
-from src.globals import get_logger
-
-from .portal import get_StakeParams
 
 
 def create_validators_table() -> None:
@@ -80,7 +78,7 @@ def fetch_validator(pubkey: str) -> dict:
         dict: dictionary containing the validator info
     """
 
-    val = SDK.portal.validator(pubkey)
+    val = get_sdk().portal.validator(pubkey)
 
     return {
         "portal_index": val.portal_index,  # constant

@@ -1,11 +1,21 @@
 # -*- coding: utf-8 -*-
 
-from os import getenv
+import os
 from dotenv import load_dotenv
 
-load_dotenv()
+from src.common import AttributeDict
 
-# catch environment variables
-EXECUTION_API = getenv("EXECUTION_API", None)
-CONSENSUS_API = getenv("CONSENSUS_API", None)
-PRIVATE_KEY = getenv("PRIVATE_KEY", None)
+
+def load_env(main_dir: str):
+    dotenv_path = os.path.join(main_dir, ".env")
+
+    load_dotenv(dotenv_path)
+    return AttributeDict.convert_recursive(
+        {
+            "PRIVATE_KEY": os.getenv("PRIVATE_KEY"),
+            "EXECUTION_API_KEY": os.getenv("EXECUTION_API_KEY"),
+            "CONSENSUS_API_KEY": os.getenv("CONSENSUS_API_KEY"),
+            "GAS_API_KEY": os.getenv("GAS_API_KEY"),
+            "EMAIL_PASSWORD": os.getenv("EMAIL_PASSWORD"),
+        }
+    )

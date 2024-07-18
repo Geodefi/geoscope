@@ -1,9 +1,8 @@
 # -*- coding: utf-8 -*-
 
 from src.classes import Daemon, Trigger
-from src.globals.sdk import SDK
+from src.globals import get_logger, get_sdk
 from src.globals.constants import chain
-from src.globals import get_logger
 
 
 class BlockDaemon(Daemon):
@@ -61,7 +60,7 @@ class BlockDaemon(Daemon):
         """
         # eth.block_number or eth.get_block_number() can also be used
         # but this allows block_identifier.
-        curr_block = SDK.w3.eth.get_block(self.block_identifier)
+        curr_block = get_sdk().w3.eth.get_block(self.block_identifier)
         get_logger().debug(f"New block detected: {curr_block.number}")
 
         # check if required number of blocks have past:

@@ -8,12 +8,13 @@ from geodefi.globals import (
 )
 
 from src.classes import Trigger
-from src.globals.sdk import SDK
+from src.globals import get_logger, get_sdk
+
 from src.globals.constants import (
     MAX_MERKLE_DELAY_SECONDS,
     PRICE_CHANGE_THRESHOLD_PERCENTAGE,
 )
-from src.helpers.db_validators import (
+from src.database.validators import (
     create_validators_table,
     save_beacon_balances,
     fetch_balances_by_pool_id_batch,
@@ -23,7 +24,6 @@ from src.helpers.portal import get_StakeParams, get_all_pool_ids
 from src.utils.thread import multithread
 from src.utils.chain import get_epoch
 from src.actions.portal import call_reportBeacon
-from src.globals import get_logger
 
 
 class NewMerkleTrigger(Trigger):
@@ -68,7 +68,7 @@ class NewMerkleTrigger(Trigger):
         # -> check if slashed or exited : then beacon_balance is assumed to be ZERO !important
 
         # pk_index_tuple[0] is the pubkey
-        v = SDK.portal.validator(pk_index_tuple[0])
+        v = get_sdk().portal.validator(pk_index_tuple[0])
         status = v.beacon_status
         balance = v.balance
         # withdrawn = v.total_withdrawals
@@ -98,13 +98,15 @@ class NewMerkleTrigger(Trigger):
         return str(balance)
 
     def calc_price(self, pool_id: str, balances: tuple) -> int:
-        pool = SDK.portal.pool(int(pool_id))
+        pool = get_sdk().portal.pool(int(pool_id))
         # TODO_task: TAKE THE LATEST GIVEN BLOCK WHEN CALCULATING
         surplus = pool.surplus
         # TODO_task: TAKE THE LATEST GIVEN BLOCK WHEN CALCULATING
         secured = pool.secured
         # TODO_task: TAKE THE LATEST GIVEN BLOCK WHEN CALCULATING
-        supply = SDK.token.contract.functions.totalSupply(int(pool_id)).call()
+        supply = (
+            get_sdk().token.contract.functions.totalSupply(int(pool_id)).call()
+        )
         # balances[0] is the beacon balance, balances[1] is the withdrawn balance, balances[2] is the fee recepient balance
         price = (
             (
@@ -128,9 +130,11 @@ class NewMerkleTrigger(Trigger):
         return dict(zip(ids, prices))
 
     def confirm_price_change(self, pool_id: int, price) -> bool:
-        curr_price = SDK.Token.contract.functions.pricePerShare(
-            int(pool_id)
-        ).call()
+        curr_price = (
+            get_sdk()
+            .Token.contract.functions.pricePerShare(int(pool_id))
+            .call()
+        )
         max_price = (
             int(curr_price) * int(100 + int(PRICE_CHANGE_THRESHOLD_PERCENTAGE))
         ) // int(100)

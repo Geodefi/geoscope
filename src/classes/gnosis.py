@@ -10,8 +10,7 @@ from eth_abi import encode, is_encodable
 from eth_typing import ChecksumAddress
 from hexbytes import HexBytes
 
-from src.globals.config import CONFIG
-from src.globals.sdk import SDK
+from src.globals import get_config, get_sdk
 from src.globals.constants import NULL_ADDRESS, WATCHER_URLS, ATTEMPT
 from src.exceptions.classes.gnosis import (
     WatcherError,
@@ -34,7 +33,8 @@ class Gnosis(object):
         self.caller: Owner = caller
 
         gnosis_abi_path = os.path.join(
-            CONFIG.abi_directory.folder_name, CONFIG.abi_directory.files.gnosis
+            get_config().abi_directory.folder_name,
+            get_config().abi_directory.files.gnosis,
         )
 
         # Get ABI
@@ -45,8 +45,8 @@ class Gnosis(object):
         # Get address and abi from json
         try:
             address = abi["address"]
-            if not SDK.w3.is_checksum_address(address):
-                address = SDK.w3.to_checksum_address(address)
+            if not get_sdk().w3.is_checksum_address(address):
+                address = get_sdk().w3.to_checksum_address(address)
 
             self.safe_address: ChecksumAddress = address
             self.abi = abi["abi"]
@@ -57,7 +57,7 @@ class Gnosis(object):
             )
 
         try:
-            self.gnosisContract: Contract = SDK.w3.eth.contract(
+            self.gnosisContract: Contract = get_sdk().w3.eth.contract(
                 abi=self.abi, address=self.safe_address
             )
         except:
@@ -237,7 +237,7 @@ class Gnosis(object):
         :returns: hex-encoded transaction hash
         """
 
-        return SDK.w3.to_hex(
+        return get_sdk().w3.to_hex(
             self.gnosisContract.functions.getTransactionHash(
                 to,
                 0,  # value
@@ -276,11 +276,11 @@ class Gnosis(object):
         tx["nonce"] = self.caller.getNonce()
         privateKey = self.caller.getPrivateKey()
 
-        signed = SDK.w3.eth.account.sign_transaction(tx, privateKey)
-        tx_hash = SDK.w3.eth.sendRawTransaction(signed.rawTransaction)
+        signed = get_sdk().w3.eth.account.sign_transaction(tx, privateKey)
+        tx_hash = get_sdk().w3.eth.sendRawTransaction(signed.rawTransaction)
 
         # LOGGER.debug("TX has been sent. Waiting for receipt...")
-        tx_receipt = SDK.w3.eth.waitForTransactionReceipt(tx_hash)
+        tx_receipt = get_sdk().w3.eth.waitForTransactionReceipt(tx_hash)
 
         if tx_receipt.status == 1:
             # LOGGER.info(
