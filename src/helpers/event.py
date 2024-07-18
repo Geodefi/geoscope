@@ -11,7 +11,7 @@ from geodefi.utils import multiple_attempt
 
 from src.globals.constants import chain
 from src.utils.thread import multithread
-from src.logger import log
+from src.globals import get_logger
 
 
 max_block_range = int(chain.range)
@@ -41,7 +41,7 @@ def get_batch_events(
     # @dev do not use filters instead, some providers do not support it.
     logs = event.get_logs(fromBlock=from_block, toBlock=to_block)
     if logs:
-        log.info(
+        get_logger().info(
             f"Detected {event.event_name:^17} logs between {from_block}-{to_block} => {len(logs)}"
         )
     return logs

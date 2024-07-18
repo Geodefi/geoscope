@@ -8,7 +8,7 @@ from src.classes.database import Database
 from src.globals.sdk import SDK
 from src.utils.thread import multithread
 from src.exceptions.classes.database import DatabaseError, DatabaseMismatchError
-from src.logger import log
+from src.globals import get_logger
 
 from .portal import get_StakeParams
 
@@ -44,7 +44,7 @@ def create_validators_table() -> None:
                 )
                 """
             )
-        log.debug(f"Created a new table: Validators")
+        get_logger().debug(f"Created a new table: Validators")
     except Exception as e:
         raise DatabaseError(f"Error creating Validators table") from e
 
@@ -177,7 +177,7 @@ def save_local_state(pubkey: str, local_state: VALIDATOR_STATE) -> None:
                 """,
                 (int(local_state), pubkey),
             )
-        log.debug(f"Updated local_state to: {local_state}")
+        get_logger().debug(f"Updated local_state to: {local_state}")
     except Exception as e:
         raise DatabaseError(
             f"Error updating local state of validator with pubkey {pubkey} \
@@ -206,7 +206,7 @@ def save_portal_state(pubkey: str, portal_state: VALIDATOR_STATE) -> None:
                 """,
                 (int(portal_state), pubkey),
             )
-            log.debug(f"Updated portal_state to: {portal_state}")
+            get_logger().debug(f"Updated portal_state to: {portal_state}")
     except Exception as e:
         raise DatabaseError(
             f"Error updating portal state of validator with pubkey {pubkey} \
@@ -226,7 +226,7 @@ def save_exit_epoch(pubkey: str, exit_epoch: str) -> None:
     """
     # did not we
     try:
-        log.debug(f"Updated the exit epoch: {exit_epoch}")
+        get_logger().debug(f"Updated the exit epoch: {exit_epoch}")
         with Database() as db:
             db.execute(
                 """
@@ -260,7 +260,9 @@ def save_beacon_balances(pubkeys: list[str], balances: list[str]) -> None:
                 "UPDATE Validators SET beacon_balance = ? WHERE pubkey = ?",
                 zip(balances, pubkeys),
             )
-        log.debug(f"Updated beacon balances of {len(pubkeys)} validators")
+        get_logger().debug(
+            f"Updated beacon balances of {len(pubkeys)} validators"
+        )
     except Exception as e:
         raise DatabaseError(
             f"Error updating beacon balances of validators {pubkeys} to table Validators"
@@ -292,7 +294,9 @@ def update_geoscope_verification_pks(
                 """,
                 zip(repeat(geoscope_verification), repeat(ts), pubkeys),
             )
-        log.debug(f"Updated verification index of {len(pubkeys)} validators")
+        get_logger().debug(
+            f"Updated verification index of {len(pubkeys)} validators"
+        )
     except Exception as e:
         raise DatabaseError(
             f"Error updating geoscope_verification and its timestamp of validators {pubkeys} to table Validators"
@@ -340,7 +344,9 @@ def update_geoscope_verification_state(
                         old_verification_state,
                     ),
                 )
-        log.debug(f"Updated verification index of validators in proposed state")
+        get_logger().debug(
+            f"Updated verification index of validators in proposed state"
+        )
     except Exception as e:
         raise DatabaseError(
             f"Error updating verification index of validators in proposed state to table Validators"
@@ -371,8 +377,10 @@ def fetch_invalid_pks() -> list[str]:
                 (int(VALIDATOR_STATE.PROPOSED), verification_index, "invalid"),
             )
             invalid_pks: list[str] = db.fetchall()
-            log.info(f"{len(invalid_pks)} invalid public keys are fetched.")
-            log.debug(",".join(map(str, invalid_pks)))
+            get_logger().info(
+                f"{len(invalid_pks)} invalid public keys are fetched."
+            )
+            get_logger().debug(",".join(map(str, invalid_pks)))
 
             return invalid_pks
     except Exception as e:
@@ -462,8 +470,8 @@ def fetch_valid_val_count() -> int:
                 (int(VALIDATOR_STATE.PROPOSED), verification_index, "valid"),
             )
             count: int = db.fetchone()[0]
-            log.info(f"{count} valid validators are fetched.")
-            log.debug(count)
+            get_logger().info(f"{count} valid validators are fetched.")
+            get_logger().debug(count)
 
             return count
     except Exception as e:
@@ -492,8 +500,10 @@ def fetch_active_vals() -> list[tuple]:
                 (int(VALIDATOR_STATE.ACTIVE)),
             )
             active_vals: list[str] = db.fetchall()
-            log.info(f"{len(active_vals)} active validators are fetched.")
-            log.debug(",".join(map(str, active_vals)))
+            get_logger().info(
+                f"{len(active_vals)} active validators are fetched."
+            )
+            get_logger().debug(",".join(map(str, active_vals)))
 
             return active_vals
     except Exception as e:
@@ -526,8 +536,10 @@ def fetch_verified_pks() -> list[str]:
                 (int(VALIDATOR_STATE.PROPOSED), verification_index),
             )
             approved_pks: list[str] = db.fetchall()
-            log.info(f"{len(approved_pks)} verified public keys are fetched.")
-            log.debug(",".join(map(str, approved_pks)))
+            get_logger().info(
+                f"{len(approved_pks)} verified public keys are fetched."
+            )
+            get_logger().debug(",".join(map(str, approved_pks)))
 
             return approved_pks
     except Exception as e:
@@ -560,10 +572,10 @@ def fetch_unverified_vals() -> list[tuple]:
                 (int(VALIDATOR_STATE.PROPOSED), verification_index),
             )
             unverified_vals: list[tuple] = db.fetchall()
-            log.info(
+            get_logger().info(
                 f"{len(unverified_vals)} new unverified validators are detected."
             )
-            log.debug(",".join(map(str, unverified_vals)))
+            get_logger().debug(",".join(map(str, unverified_vals)))
 
             return unverified_vals
     except Exception as e:

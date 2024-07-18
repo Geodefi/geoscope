@@ -23,7 +23,7 @@ from src.helpers.portal import get_StakeParams, get_all_pool_ids
 from src.utils.thread import multithread
 from src.utils.chain import get_epoch
 from src.actions.portal import call_reportBeacon
-from src.logger import log
+from src.globals import get_logger
 
 
 class NewMerkleTrigger(Trigger):
@@ -44,7 +44,7 @@ class NewMerkleTrigger(Trigger):
             self, name=self.name, action=self.price_and_balance_merkle
         )
         create_validators_table()
-        log.debug(f"{self.name} is initated.")
+        get_logger().debug(f"{self.name} is initated.")
 
     def update_beacon_balances(self, vals: list[tuple]):
         epoch = get_epoch()["epoch"]
@@ -160,7 +160,7 @@ class NewMerkleTrigger(Trigger):
             *args: Variable length argument list.
             **kwargs: Arbitrary keyword arguments.
         """
-        log.info(f"{self.name} is triggered.")
+        get_logger().info(f"{self.name} is triggered.")
 
         # TODO: merkle implementation
 

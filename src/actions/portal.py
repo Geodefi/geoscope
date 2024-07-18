@@ -3,10 +3,10 @@
 from web3.types import TxReceipt
 from web3.exceptions import TimeExhausted
 
+from src.globals import get_logger
 from src.globals.sdk import SDK
 from src.globals.env import PRIVATE_KEY
 from src.exceptions.actions.portal import CallFailedError
-from src.logger import log
 from src.utils import get_gas
 
 
@@ -34,7 +34,7 @@ def call_updateVerificationIndex(
         CallFailedError: Raised if the proposeStake call fails.
     """
 
-    log.debug("Calling updateVerificationIndex() from portal")
+    get_logger().debug("Calling updateVerificationIndex() from portal")
 
     try:
         tx: dict = SDK.portal.contract.functions.updateVerificationIndex(
@@ -46,21 +46,25 @@ def call_updateVerificationIndex(
             signed_tx.raw_transaction
         )
 
-        log.info(f"updateVerificationIndex tx is created: {tx_hash}")
+        get_logger().info(f"updateVerificationIndex tx is created: {tx_hash}")
 
         # Wait for the transaction to be mined, and get the transaction receipt
         tx_receipt: TxReceipt = SDK.portal.w3.eth.wait_for_transaction_receipt(
             tx_hash
         )
-        log.info(f"updateVerificationIndex tx is concluded: {tx_receipt}")
+        get_logger().info(
+            f"updateVerificationIndex tx is concluded: {tx_receipt}"
+        )
 
         return True
 
     except TimeExhausted as e:
-        log.error(f"updateVerificationIndex tx could not conclude in time: {e}")
+        get_logger().error(
+            f"updateVerificationIndex tx could not conclude in time: {e}"
+        )
         raise e
     except Exception as e:
-        log.error(f"updateVerificationIndex tx failed: {e}")
+        get_logger().error(f"updateVerificationIndex tx failed: {e}")
         raise CallFailedError(
             "Failed to call updateVerificationIndex on portal contract"
         ) from e
@@ -93,7 +97,7 @@ def call_reportBeacon(
         CallFailedError: Raised if the proposeStake call fails.
     """
 
-    log.debug("Calling reportBeacon() from portal")
+    get_logger().debug("Calling reportBeacon() from portal")
 
     try:
         tx: dict = SDK.portal.contract.functions.reportBeacon(
@@ -105,21 +109,21 @@ def call_reportBeacon(
             signed_tx.raw_transaction
         )
 
-        log.info(f"reportBeacon tx is created: {tx_hash}")
+        get_logger().info(f"reportBeacon tx is created: {tx_hash}")
 
         # Wait for the transaction to be mined, and get the transaction receipt
         tx_receipt: TxReceipt = SDK.portal.w3.eth.wait_for_transaction_receipt(
             tx_hash
         )
-        log.info(f"reportBeacon tx is concluded: {tx_receipt}")
+        get_logger().info(f"reportBeacon tx is concluded: {tx_receipt}")
 
         return True
 
     except TimeExhausted as e:
-        log.error(f"reportBeacon tx could not conclude in time: {e}")
+        get_logger().error(f"reportBeacon tx could not conclude in time: {e}")
         raise e
     except Exception as e:
-        log.error(f"reportBeacon tx failed: {e}")
+        get_logger().error(f"reportBeacon tx failed: {e}")
         raise CallFailedError(
             "Failed to call reportBeacon on portal contract"
         ) from e
@@ -146,7 +150,7 @@ def call_blameProposal(pk: str) -> bool:
         CallFailedError: Raised if the proposeStake call fails.
     """
 
-    log.debug("Calling blameProposal() from portal")
+    get_logger().debug("Calling blameProposal() from portal")
 
     try:
         tx: dict = SDK.portal.contract.functions.blameProposal(
@@ -158,21 +162,21 @@ def call_blameProposal(pk: str) -> bool:
             signed_tx.raw_transaction
         )
 
-        log.info(f"blameProposal tx is created: {tx_hash}")
+        get_logger().info(f"blameProposal tx is created: {tx_hash}")
 
         # Wait for the transaction to be mined, and get the transaction receipt
         tx_receipt: TxReceipt = SDK.portal.w3.eth.wait_for_transaction_receipt(
             tx_hash
         )
-        log.info(f"blameProposal tx is concluded: {tx_receipt}")
+        get_logger().info(f"blameProposal tx is concluded: {tx_receipt}")
 
         return True
 
     except TimeExhausted as e:
-        log.error(f"blameProposal tx could not conclude in time: {e}")
+        get_logger().error(f"blameProposal tx could not conclude in time: {e}")
         raise e
     except Exception as e:
-        log.error(f"blameProposal tx failed: {e}")
+        get_logger().error(f"blameProposal tx failed: {e}")
         raise CallFailedError(
             "Failed to call blameProposal on portal contract"
         ) from e
@@ -206,7 +210,7 @@ def call_blameExit(
         CallFailedError: Raised if the proposeStake call fails.
     """
 
-    log.debug("Calling blameExit() from portal")
+    get_logger().debug("Calling blameExit() from portal")
 
     try:
         tx: dict = SDK.portal.contract.functions.blameExit(
@@ -218,21 +222,21 @@ def call_blameExit(
             signed_tx.raw_transaction
         )
 
-        log.info(f"blameExit tx is created: {tx_hash}")
+        get_logger().info(f"blameExit tx is created: {tx_hash}")
 
         # Wait for the transaction to be mined, and get the transaction receipt
         tx_receipt: TxReceipt = SDK.portal.w3.eth.wait_for_transaction_receipt(
             tx_hash
         )
-        log.info(f"blameExit tx is concluded: {tx_receipt}")
+        get_logger().info(f"blameExit tx is concluded: {tx_receipt}")
 
         return True
 
     except TimeExhausted as e:
-        log.error(f"blameExit tx could not conclude in time: {e}")
+        get_logger().error(f"blameExit tx could not conclude in time: {e}")
         raise e
     except Exception as e:
-        log.error(f"blameExit tx failed: {e}")
+        get_logger().error(f"blameExit tx failed: {e}")
         raise CallFailedError(
             "Failed to call blameExit on portal contract"
         ) from e

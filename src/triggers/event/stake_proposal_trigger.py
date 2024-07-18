@@ -11,7 +11,7 @@ from src.helpers.db_validators import (
 from src.helpers.db_events import create_stake_proposal_table
 from src.helpers.event import event_handler
 from src.exceptions.classes.database import DatabaseError
-from src.logger import log
+from src.globals import get_logger
 
 
 class StakeProposalTrigger(Trigger):
@@ -32,7 +32,7 @@ class StakeProposalTrigger(Trigger):
         Trigger.__init__(self, name=self.name, action=self.consider_deposit)
         create_validators_table()
         create_stake_proposal_table()
-        log.debug(f"{self.name} is initated.")
+        get_logger().debug(f"{self.name} is initated.")
 
     def __parse_events(self, events: Iterable[EventData]) -> list[tuple]:
         """Parses the events to saveable format. Returns a list of tuples. Each tuple represents a saveable event.
@@ -72,7 +72,9 @@ class StakeProposalTrigger(Trigger):
                     "INSERT INTO StakeProposal VALUES (?,?,?,?,?,?)",
                     events,
                 )
-            log.debug(f"Inserted {len(events)} events into StakeProposal table")
+            get_logger().debug(
+                f"Inserted {len(events)} events into StakeProposal table"
+            )
         except Exception as e:
             raise DatabaseError(
                 f"Error inserting events to table StakeProposal"
@@ -88,7 +90,7 @@ class StakeProposalTrigger(Trigger):
             *args: Variable length argument list
             **kwargs: Arbitrary keyword arguments
         """
-        log.info(f"{self.name} is triggered.")
+        get_logger().info(f"{self.name} is triggered.")
 
         # parse and save events
         filtered_events: Iterable[EventData] = event_handler(

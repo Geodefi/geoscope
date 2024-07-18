@@ -4,8 +4,9 @@ from time import sleep
 from typing import Callable
 from threading import Thread, Event
 
-from src.logger import log
+from src.globals import get_logger
 from src.exceptions.classes.daemon import DaemonError
+
 from .trigger import Trigger
 
 
@@ -54,7 +55,7 @@ class Daemon:
             trigger (Trigger): an initialized Trigger instance
             initial_delay (int, optional): Initial delay before starting the loop. Defaults to 0.
         """
-        log.debug(
+        get_logger().debug(
             f"Initializing a Daemon object. interval: {interval}, trigger:{trigger.name}, delay:{initial_delay}"
         )
         self.__set_task(task)
@@ -65,7 +66,7 @@ class Daemon:
         self.__worker: Thread = Thread(name=trigger.name, target=self.__loop)
         self.start_flag: Event = Event()
         self.stop_flag: Event = Event()
-        log.debug(f"Initialized a Daemon for: {trigger.name:^17}.")
+        get_logger().debug(f"Initialized a Daemon for: {trigger.name:^17}.")
 
     @property
     def interval(self) -> int:
@@ -149,7 +150,7 @@ class Daemon:
                     pass
 
             except Exception as e:
-                log.error("Stopping Geonius")
+                get_logger().error("Stopping Geonius")
                 raise DaemonError("Daemon stopped due to an exception.") from e
 
     def run(self) -> None:
@@ -159,14 +160,14 @@ class Daemon:
             DaemonError: Raised if the daemon is already running.
         """
         if self.start_flag.is_set():
-            log.error("Stopping Geonius")
+            get_logger().error("Stopping Geonius")
             raise DaemonError("Daemon is already running.")
         self.stop_flag.clear()
 
         self.__worker.start()
 
         self.start_flag.set()
-        log.info(
+        get_logger().info(
             f"Daemon for {self.trigger.name:^17} is running. Use stop() to stop, and CTRL+C to exit."
         )
 
@@ -179,8 +180,8 @@ class Daemon:
 
         # if already stopped
         if not self.start_flag.is_set() or self.stop_flag.is_set():
-            log.error("Stopping Geonius")
+            get_logger().error("Stopping Geonius")
             raise DaemonError("Daemon is already stopped.")
 
         self.stop_flag.set()
-        log.info(f"Daemon for {self.trigger.name:^17} is stopped.")
+        get_logger().info(f"Daemon for {self.trigger.name:^17} is stopped.")

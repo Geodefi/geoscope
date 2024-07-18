@@ -10,7 +10,7 @@ from src.globals.sdk import SDK
 from src.globals.constants import chain
 from src.helpers.event import get_all_events
 from src.helpers.db_events import find_latest_event
-from src.logger import log
+from src.globals import get_logger
 
 # TODO: import send_email from src.utils.notify
 from src.utils.notifications import send_email
@@ -60,7 +60,7 @@ class EventDaemon(Daemon):
         self.__last_snapshot: AttributeDict = find_latest_event(
             event.event_name
         )
-        log.debug(f"{trigger.name} is attached to an Event Daemon")
+        get_logger().debug(f"{trigger.name} is attached to an Event Daemon")
 
     def filter_known_events(self, e: EventData) -> bool:
         """Filter events that are in the previous block, which are not processed."""
@@ -85,7 +85,7 @@ class EventDaemon(Daemon):
         # eth.block_number or eth.get_block_number() can also be used
         # but this allows block_identifier.
         curr_block: int = (SDK.w3.eth.get_block(self.block_identifier)).number
-        log.debug(f"Processing Block: {curr_block}")
+        get_logger().debug(f"Processing Block: {curr_block}")
 
         # check if required number of blocks have past:
         if curr_block >= self.__last_snapshot.block_number + self.block_period:
@@ -110,7 +110,7 @@ class EventDaemon(Daemon):
                 )
 
             except Exception as e:
-                log.error(e)
+                get_logger().error(e)
                 send_email(
                     e.__class__.__name__,
                     str(e),
@@ -128,7 +128,7 @@ class EventDaemon(Daemon):
             )
 
             if unknown_events:
-                log.debug(
+                get_logger().debug(
                     f"{self.trigger.name} will be triggered with {len(unknown_events)} events"
                 )
                 return unknown_events
@@ -137,7 +137,7 @@ class EventDaemon(Daemon):
                 return None
 
         else:
-            log.debug(
+            get_logger().debug(
                 f"Block period have not been met yet.\
                 Expected block:{self.__last_snapshot.block_number + self.block_period}"
             )

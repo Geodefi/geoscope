@@ -28,7 +28,7 @@ def __set_web3_account(sdk: Geode, private_key: str) -> Geode:
     # Set default account if one address is used generally
     sdk.w3.eth.defaultAccount = signer
 
-    # log.info(f"Connected to web3 with: {signer}")
+    # get_logger().info(f"Connected to web3 with: {signer}")
     return sdk
 
 
@@ -57,7 +57,7 @@ def __init_sdk(exec_api: str, cons_api: str, priv_key: str = None) -> Geode:
 
     # pylint: disable-next=broad-exception-caught
     except Exception as e:
-        # log.exception("Could not connect to sdk. Please check your configuration.", exc_info=True)
+        # get_logger().exception("Could not connect to sdk. Please check your configuration.", exc_info=True)
         sys.exit(e)
 
 

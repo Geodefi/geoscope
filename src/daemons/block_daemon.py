@@ -3,7 +3,7 @@
 from src.classes import Daemon, Trigger
 from src.globals.sdk import SDK
 from src.globals.constants import chain
-from src.logger import log
+from src.globals import get_logger
 
 
 class BlockDaemon(Daemon):
@@ -49,7 +49,7 @@ class BlockDaemon(Daemon):
         self.block_identifier: int = chain.identifier
         self.__recent_block: int = chain.start
         self.block_period: int = block_period
-        log.debug(f"{trigger.name} is attached to a Block Daemon")
+        get_logger().debug(f"{trigger.name} is attached to a Block Daemon")
 
     def listen_blocks(self) -> int:
         """The main task for the BlockDaemon.
@@ -62,16 +62,16 @@ class BlockDaemon(Daemon):
         # eth.block_number or eth.get_block_number() can also be used
         # but this allows block_identifier.
         curr_block = SDK.w3.eth.get_block(self.block_identifier)
-        log.debug(f"New block detected: {curr_block.number}")
+        get_logger().debug(f"New block detected: {curr_block.number}")
 
         # check if required number of blocks have past:
         if curr_block.number >= self.__recent_block + self.block_period:
             #   returns the latest block number
             self.__recent_block = curr_block.number
-            log.debug(f"{self.trigger.name} will be triggered")
+            get_logger().debug(f"{self.trigger.name} will be triggered")
             return curr_block
         else:
-            log.debug(
+            get_logger().debug(
                 f"Block period have not been met yet.\
                 Expected block:{self.__recent_block + self.block_period}"
             )

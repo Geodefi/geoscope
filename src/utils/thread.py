@@ -6,7 +6,7 @@ from threading import current_thread
 from functools import wraps
 from multiprocessing.pool import ThreadPool
 
-from src.logger import log
+from src.globals import get_logger
 
 
 def rename_worker(fn):
@@ -37,7 +37,7 @@ def multithread(
     Returns:
         list[Any]: list of results from the function calls
     """
-    log.debug(f"Calling {func.__name__:^21} multithreaded.")
+    get_logger().debug(f"Calling {func.__name__:^21} multithreaded.")
     with ThreadPool(processes=num_threads) as pool:
         res: Any = pool.starmap(func, zip(*args), chunksize=chunk_size)
 

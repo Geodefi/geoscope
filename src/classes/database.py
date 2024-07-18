@@ -4,9 +4,9 @@ import os
 import sqlite3 as sql
 from typing import Any
 
+from src.globals import get_logger
 from src.globals.config import CONFIG
 from src.exceptions.classes.database import DatabaseError
-from src.logger import log
 
 
 class Database:
@@ -61,8 +61,8 @@ class Database:
             self.connection: sql.Connection = sql.connect(connection_path)
             self.cursor: sql.Cursor = self.connection.cursor()
         except Exception as e:
-            log.debug(f"SQL version: {sql.version}")
-            log.debug(f"sqlite version: {sql.sqlite_version}")
+            get_logger().debug(f"SQL version: {sql.version}")
+            get_logger().debug(f"sqlite version: {sql.sqlite_version}")
             raise DatabaseError(
                 f"Error while connecting to the database with database path {connection_path}"
             ) from e

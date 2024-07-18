@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 from src.classes import Trigger
-from src.logger import log
+from src.globals import get_logger
 
 
 class FeeTheftTrigger(Trigger):
@@ -20,7 +20,7 @@ class FeeTheftTrigger(Trigger):
         """
 
         Trigger.__init__(self, name=self.name, action=self.check_fee_theft)
-        log.debug(f"{self.name} is initated.")
+        get_logger().debug(f"{self.name} is initated.")
 
     def check_fee_theft(self, *args, **kwargs) -> None:
         """Checks for fee theft and prison the thief if the fee theft is detected.
@@ -29,6 +29,6 @@ class FeeTheftTrigger(Trigger):
             *args: Variable length argument list.
             **kwargs: Arbitrary keyword arguments.
         """
-        log.info(f"{self.name} is triggered.")
+        get_logger().info(f"{self.name} is triggered.")
 
         # TODO: fee theft check implementation

@@ -4,7 +4,7 @@ from src.classes import Database
 from src.common import AttributeDict
 from src.globals.constants import chain
 from src.exceptions.classes.database import DatabaseError
-from src.logger import log
+from src.globals import get_logger
 
 
 def find_latest_event(event_name: str) -> AttributeDict:
@@ -32,7 +32,7 @@ def find_latest_event(event_name: str) -> AttributeDict:
             found_event = db.fetchone()
             if found_event:
                 e = found_event
-                log.debug(
+                get_logger().debug(
                     f"Found on database:{event_name} => {e[0]}/{e[1]}/{e[2]}"
                 )
                 return AttributeDict.convert_recursive(
@@ -48,7 +48,7 @@ def find_latest_event(event_name: str) -> AttributeDict:
             f"Error finding latest block for {event_name}"
         ) from e
 
-    log.debug(
+    get_logger().debug(
         f"Could not find the event:{event_name} on database. \
             Proceeding with default initial block:{chain.start}"
     )
@@ -82,7 +82,7 @@ def create_stake_proposal_table() -> None:
                 )
                 """
             )
-        log.debug(f"Created a new table: StakeProposal")
+        get_logger().debug(f"Created a new table: StakeProposal")
     except Exception as e:
         raise DatabaseError("Error creating StakeProposal table") from e
 
@@ -97,7 +97,7 @@ def drop_stake_proposal_table() -> None:
     try:
         with Database() as db:
             db.execute("""DROP TABLE IF EXISTS StakeProposal""")
-        log.debug(f"Dropped Table: StakeProposal")
+        get_logger().debug(f"Dropped Table: StakeProposal")
     except Exception as e:
         raise DatabaseError(f"Error dropping StakeProposal table") from e
 

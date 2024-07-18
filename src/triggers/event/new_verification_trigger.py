@@ -24,7 +24,7 @@ from src.helpers.db_validators import (
 from src.helpers.db_events import create_stake_proposal_table
 from src.helpers.portal import get_StakeParams
 from src.actions.portal import call_updateVerificationIndex
-from src.logger import log
+from src.globals import get_logger
 
 
 # TODO: this wont be an event trigger, will be a block trigger, need to move it
@@ -45,7 +45,7 @@ class NewVerificationTrigger(Trigger):
         Trigger.__init__(self, name=self.name, action=self.check_new_validators)
         create_validators_table()
         create_stake_proposal_table()
-        log.debug(f"{self.name} is initated.")
+        get_logger().debug(f"{self.name} is initated.")
 
     def validate_proposals(
         self, vals: list[tuple], current_block_ts: int

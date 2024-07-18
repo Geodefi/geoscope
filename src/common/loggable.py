@@ -1,12 +1,12 @@
 # -*- coding: utf-8 -*-
 
 import os
-from typing import Any
-import logging
-from logging import StreamHandler, Formatter
+from logging import StreamHandler, Formatter, Logger, basicConfig, getLogger
 from logging.handlers import TimedRotatingFileHandler
 
-from ..globals.config import CONFIG
+from geodefi.globals import Network
+
+from src.globals import get_config, get_sdk
 
 
 class Loggable:
@@ -21,9 +21,9 @@ class Loggable:
 
         OR
 
-        from src.global.logger import log
-        log.info("info message")
-        log.error("error message")
+        from src.global import get_logger
+        get_logger().info("info message")
+        get_logger().error("error message")
 
 
     Attributes:
@@ -33,23 +33,21 @@ class Loggable:
 
     def __init__(self) -> None:
         """Initializes a Loggable object."""
-        logger: logging.Logger = self.__get_logger()
-        logger.info("Initalized a global logger.")
+        logger: Logger = self.__get_logger()
+        logger.debug("Initalized a global logger.")
         self.logger = logger
 
-    def __get_logger(self) -> logging.Logger:
+    def __get_logger(self) -> Logger:
         """Initializes and returns a logger object with given streams and files.
 
         Returns:
-            logging.Logger: Logger object to be used in the class.
+            Logger: Logger object to be used in the class.
         """
-
-        logger: logging.Logger = logging.getLogger()
+        logger: Logger = getLogger()
         logger.setLevel(self.__level)
         logger.propagate = False
-
         handlers: list = list()
-        if CONFIG.logger.stream:
+        if not get_config().logger.no_stream:
             stream_handler: StreamHandler = self.__get_stream_handler()
             handlers.append(stream_handler)
             logger.addHandler(stream_handler)
@@ -57,7 +55,7 @@ class Loggable:
                 f"Logger is provided with a stream handler. Level: {self.__level}"
             )
 
-        if CONFIG.logger.file:
+        if not get_config().logger.no_file:
             file_handler: TimedRotatingFileHandler = self.__get_file_handler()
             handlers.append(file_handler)
             logger.addHandler(file_handler)
@@ -65,7 +63,7 @@ class Loggable:
                 f"Logger is provided with a file handler. Level: {self.__level}"
             )
 
-        logging.basicConfig(handlers=handlers, force=True)
+        basicConfig(handlers=handlers, force=True)
         return logger
 
     @property
@@ -75,7 +73,7 @@ class Loggable:
         Returns:
             str: Logger level name
         """
-        return CONFIG.logger.level
+        return get_config().logger.level
 
     @property
     def __formatter(self) -> Formatter:
@@ -89,7 +87,7 @@ class Loggable:
         """
 
         return Formatter(
-            fmt=f"[%(asctime)s] %(threadName)-25s | %(levelname)-8s :: %(message)s",
+            fmt=f"[%(asctime)s] %(threadName)-29s | %(levelname)-8s :: %(message)s",
             datefmt="%H:%M:%S",
         )
 
@@ -113,8 +111,8 @@ class Loggable:
             TimedRotatingFileHandler: Initialized and Configured File Handler
         """
 
-        main_dir: str = CONFIG.directory
-        log_dir: str = CONFIG.logger.directory
+        main_dir: str = get_config().dir
+        log_dir: str = get_config().logger.dir
         path: str = os.path.join(main_dir, log_dir)
         if not os.path.exists(path):
             os.makedirs(path)
@@ -122,23 +120,25 @@ class Loggable:
         filename: str = os.path.join(path, prefix)
         fh: TimedRotatingFileHandler = TimedRotatingFileHandler(
             filename,
-            when=CONFIG.logger.when,
-            interval=CONFIG.logger.interval,
-            backupCount=CONFIG.logger.backup,
+            when=get_config().logger.when,
+            interval=get_config().logger.interval,
+            backupCount=get_config().logger.backup,
         )
 
         fh.setFormatter(self.__formatter)
         fh.setLevel(self.__level)
         return fh
 
-    def __getattr__(self, attr: str) -> Any:
-        """Added so, `self.info()` can be used instead of `self.logger.<log_level>()`
+    def etherscan(self, function_name: str, tx_hash: str) -> None:
+        network: str = get_sdk().network
+        if network == Network.holesky:
+            self.logger.info(
+                f"{function_name} tx is submitted: https://holesky.etherscan.io/tx/{tx_hash.hex()}"
+            )
+        elif network == Network.ethereum:
+            self.logger.info(
+                f"{function_name} tx is submitted: https://etherscan.io/tx/{tx_hash.hex()}"
+            )
 
-        Args:
-            attr (str): Attribute to be get.
-
-        Returns:
-            Any: Attribute of the object.
-        """
-
+    def __getattr__(self, attr):
         return getattr(self.logger, attr)

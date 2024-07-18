@@ -3,6 +3,8 @@
 import sys
 from web3.contract.contract import ContractEvent
 
+from src.common import Loggable
+from src.globals import set_logger
 from src.daemons import BlockDaemon, EventDaemon
 from src.triggers.block import FeeTheftTrigger
 
@@ -54,6 +56,9 @@ def main():
 
     initializes and sets up the daemons.
     """
+
+    logger: Loggable = Loggable()
+    set_logger(logger)
 
     try:
         setup_daemons()

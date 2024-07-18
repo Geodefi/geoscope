@@ -2,7 +2,7 @@
 
 from typing import Callable
 
-from src.logger import log
+from src.globals import get_logger
 
 
 class Trigger:
@@ -38,7 +38,7 @@ class Trigger:
             )
         self.name: str = name
 
-        log.debug(f"Trigger {name} is initalized.")
+        get_logger().debug(f"Trigger {name} is initalized.")
         self.__register_action(action)
 
     def __register_action(self, action: Callable) -> None:
