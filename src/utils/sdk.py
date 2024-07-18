@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 from web3.middleware import construct_sign_and_send_raw_middleware
 from geode import Geode
 

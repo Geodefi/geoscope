@@ -1,13 +1,14 @@
+# -*- coding: utf-8 -*-
+
 import sys
 from web3.contract.contract import ContractEvent
 
-from src.daemons.block_daemon import BlockDaemon
-from src.daemons.event_daemon import EventDaemon
-from src.triggers.block.fee_theft_trigger import FeeTheftTrigger
+from src.daemons import BlockDaemon, EventDaemon
+from src.triggers.block import FeeTheftTrigger
 
 # TODO: update triggers with new ones
-from src.triggers.block.merkle_trigger import MerkleTrigger
-from src.triggers.event.verification_trigger import VerificationTrigger
+from src.triggers.block import MerkleTrigger
+from src.triggers.event import VerificationTrigger
 from src.globals.sdk import SDK
 from src.globals.constants import hour_blocks
 

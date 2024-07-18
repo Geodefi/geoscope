@@ -1,10 +1,8 @@
 # -*- coding: utf-8 -*-
 
-from src.classes.daemon import Daemon
-from src.classes.trigger import Trigger
+from src.classes import Daemon, Trigger
 from src.globals.sdk import SDK
 from src.globals.constants import chain
-
 from src.logger import log
 
 

@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 from geode.utils.wrappers import httpRequest
 
 from src.globals.sdk import SDK

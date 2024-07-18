@@ -4,17 +4,16 @@ from typing import Iterable
 from web3.types import EventData
 from web3.contract.contract import ContractEvent
 
-from src.logger import log
-from src.classes.daemon import Daemon
-from src.classes.trigger import Trigger
+from src.classes import Daemon, Trigger
+from src.common import AttributeDict
 from src.globals.sdk import SDK
 from src.globals.constants import chain
 from src.helpers.event import get_all_events
 from src.helpers.db_events import find_latest_event
-from src.common.attribute_dict import AttributeDict
+from src.logger import log
 
-# TODO: import send_email from src.utils
-from src.utils import send_email
+# TODO: import send_email from src.utils.notify
+from src.utils.notifications import send_email
 
 
 class EventDaemon(Daemon):

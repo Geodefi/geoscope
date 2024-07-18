@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from src.classes.trigger import Trigger
+from src.classes import Trigger
 from src.logger import log
 
 

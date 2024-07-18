@@ -3,7 +3,7 @@
 from geodefi.globals import VALIDATOR_STATE, DEPOSIT_SIZE, GENESIS_FORK_VERSION
 from geodefi.utils.bls.validate import validate_parameters
 
-from src.classes.trigger import Trigger
+from src.classes import Trigger
 from src.globals.sdk import SDK
 from src.globals.constants import (
     MIN_BLOCK_DELAY,

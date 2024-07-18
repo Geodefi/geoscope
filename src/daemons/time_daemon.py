@@ -2,8 +2,7 @@
 
 from typing_extensions import Self
 
-from src.classes.daemon import Daemon
-from src.classes.trigger import Trigger
+from src.classes import Daemon, Trigger
 from src.logger import log
 
 

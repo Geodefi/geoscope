@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 
-from src.classes.database import Database
+from src.classes import Database
+from src.common import AttributeDict
 from src.globals.constants import chain
 from src.exceptions.classes.database import DatabaseError
-from src.common.attribute_dict import AttributeDict
 from src.logger import log
 
 

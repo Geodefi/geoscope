@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 # # import asyncio
 # # EMAIL RELATED
 # from email.mime.multipart import MIMEMultipart

@@ -7,7 +7,7 @@ from geodefi.globals import (
     ETHER_DENOMINATOR,
 )
 
-from src.classes.trigger import Trigger
+from src.classes import Trigger
 from src.globals.sdk import SDK
 from src.globals.constants import (
     MAX_MERKLE_DELAY_SECONDS,

@@ -5,8 +5,8 @@ import sqlite3 as sql
 from typing import Any
 
 from src.globals.config import CONFIG
-from src.logger import log
 from src.exceptions.classes.database import DatabaseError
+from src.logger import log
 
 
 class Database:

@@ -2,7 +2,6 @@ import os
 import json
 from typing import List, Any
 from time import sleep
-
 import requests
 from web3.exceptions import ContractLogicError
 from web3.contract import Contract
@@ -11,13 +10,13 @@ from eth_abi import encode, is_encodable
 from eth_typing import ChecksumAddress
 from hexbytes import HexBytes
 
+from src.globals.config import CONFIG
+from src.globals.sdk import SDK
+from src.globals.constants import NULL_ADDRESS, WATCHER_URLS, ATTEMPT
 from src.exceptions.classes.gnosis import (
     WatcherError,
     ContractCreationError,
 )
-from src.globals.config import CONFIG
-from src.globals.sdk import SDK
-from src.globals.constants import NULL_ADDRESS, WATCHER_URLS, ATTEMPT
 
 # from script.helpers import gasPrice
 
