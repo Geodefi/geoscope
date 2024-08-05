@@ -80,6 +80,7 @@ class NewVerificationTrigger(Trigger):
 
         return valid_pks, invalid_pks
 
+    # TODO: do not need wc as parameter, it wont be checked for database wc only for pool and validator
     def validate_proposal(
         self, pk: str, pool_id: str, sig31: str, wc: str, current_block_ts: int
     ) -> int:
@@ -119,8 +120,8 @@ class NewVerificationTrigger(Trigger):
         # case 3
         if not (
             val.balance == 1e9
-            and val.withdrawal_credentials == wc  # wc is same on beacon chain
-            and wc == pool_wc  # correct wc is given to beacon chain
+            and val.withdrawal_credentials
+            == pool_wc  # correct wc is given to beacon chain
         ):
             return 0
 
