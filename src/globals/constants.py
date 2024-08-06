@@ -1,10 +1,9 @@
 # -*- coding: utf-8 -*-
 
-from .config import CONFIG
-from .sdk import SDK
+from src.globals import get_sdk, get_config
 
-network: str = SDK.network.name
-chain: dict = CONFIG.chains[network]
+network: str = get_sdk().network.name
+chain: dict = get_config().chains[network]
 hour_blocks: int = 3600 // int(chain.interval)
 
 # TODO: check block_seconds if can be fetched from chain

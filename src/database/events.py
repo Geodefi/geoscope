@@ -73,7 +73,7 @@ def create_info_table() -> None:
             db.execute(
                 """
                 CREATE TABLE IF NOT EXISTS Info (
-                    processed_slot INTEGER,
+                    processed_slot INTEGER
                 )
                 """
             )
@@ -117,7 +117,7 @@ def fetch_processed_slot() -> int:
                 """
                 SELECT processed_slot
                 FROM Info
-                """
+                """,
             )
             processed_slot = db.fetchone()
             if processed_slot:
@@ -125,8 +125,6 @@ def fetch_processed_slot() -> int:
             return -1
     except Exception as e:
         raise DatabaseError("Error fetching processed slot") from e
-
-    return 0
 
 
 def save_processed_slot(slot: int) -> None:
@@ -145,9 +143,29 @@ def save_processed_slot(slot: int) -> None:
                 """,
                 (slot,),
             )
-        get_logger().debug(f"Saved processed slot to database: {slot}")
+        get_logger().info(f"Saved processed slot to database: {slot}")
     except Exception as e:
         raise DatabaseError("Error saving processed slot") from e
+
+
+def insert_processed_slot(slot: int) -> None:
+    """Inserts the processed slot to the database.
+
+    Args:
+        slot (int): Slot number to be inserted
+    """
+
+    try:
+        with Database() as db:
+            db.execute(
+                """
+                INSERT INTO Info VALUES (?)
+                """,
+                (slot,),
+            )
+        get_logger().debug(f"Inserted processed slot to database: {slot}")
+    except Exception as e:
+        raise DatabaseError("Error inserting processed slot") from e
 
 
 # TODO: deposits and withdrawals are not actually events like info table
@@ -167,7 +185,7 @@ def create_deposits_table() -> None:
                     withdrawal_credentials TEXT NOT NULL,
                     amount TEXT NOT NULL,
                     signature TEXT NOT NULL,
-                    slot INTEGER NOT NULL,
+                    slot INTEGER NOT NULL
                 )
                 """
             )

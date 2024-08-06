@@ -16,6 +16,7 @@ from src.database.events import (
     create_info_table,
     fetch_processed_slot,
     save_processed_slot,
+    insert_processed_slot,
 )
 
 from src.utils.thread import multithread
@@ -48,9 +49,12 @@ class BeaconTrigger(Trigger):
         sdk: Geode = get_sdk()
 
         last_processed_slot = fetch_processed_slot()
+
+        # TODO: maybe can do this in setup??
         if last_processed_slot == -1:
             # start from the given slot - decide where to write on the config file
             last_processed_slot = get_config().start_slot
+            insert_processed_slot(last_processed_slot)
         current_slot = sdk.beacon.beacon_headers_id("finalized")["slot"]
 
         if last_processed_slot == current_slot:

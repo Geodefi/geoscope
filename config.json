@@ -1,4 +1,6 @@
 {
+  "dir": ".geonious",
+  "chain_name": "holesky",
   "chains": {
     "ethereum": {
       "watchers": [],
@@ -20,16 +22,21 @@
       "period": "1",
       "interval": "12",
       "range": "3000",
-      "slots_per_epoch": 32
+      "slots_per_epoch": 32,
+      "execution_api": "https://rpc.ankr.com/eth_holesky/<API_KEY_EXECUTION>",
+      "consensus_api": "https://rpc.ankr.com/premium-http/eth_holesky_beacon/<API_KEY_CONSENSUS>"
     }
   },
   "directory": "telescope",
   "logger": {
-    "directory": "logs",
+    "dir": "logs",
     "level": "INFO",
     "when": "midnight",
     "interval": 1,
-    "backupCount": 30
+    "backupCount": 30,
+    "no_stream": true,
+    "no_file": false,
+    "backup": 5
   },
   "database": {
     "directory": "db"

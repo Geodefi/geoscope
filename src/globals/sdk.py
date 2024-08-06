@@ -3,7 +3,7 @@
 from web3.middleware import construct_sign_and_send_raw_middleware
 from geodefi import Geode
 
-from src.exceptions import MissingPrivateKeyError, SDKError
+from src.exceptions.globals.sdk import MissingPrivateKeyError, SDKError
 
 
 def __set_web3_account(sdk: Geode, private_key: str) -> Geode:
