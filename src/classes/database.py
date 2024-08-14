@@ -4,8 +4,8 @@ import os
 import sqlite3 as sql
 from typing import Any
 
-from src.globals import get_logger, get_config
-from src.exceptions.classes.database import DatabaseError
+from src.exceptions import DatabaseError
+from src.globals import get_config, get_logger
 
 
 class Database:
@@ -20,8 +20,6 @@ class Database:
             ''')
 
     Attributes:
-        main_dir (str): Main directory of the project.
-        db_dir (str): Directory to store the database files.
         db_name (str): Name of the database file.
         db_ext (str): Extension of the database file.
         path (str): Path of the database file.
@@ -32,8 +30,6 @@ class Database:
         DatabaseError: Error while connecting to the database.
     """
 
-    main_dir: str = get_config().directory
-    db_dir: str = get_config().database.directory
     db_name: str = "operator"
     db_ext: str = ".db"
 
@@ -48,13 +44,11 @@ class Database:
         """
 
         self.db_name: str = db_name
-        self.path: str = os.path.join(self.main_dir, self.db_dir)
+        self.path: str = os.path.join(get_config().dir, get_config().database.dir)
         if not os.path.exists(self.path):
             os.makedirs(self.path)
 
-        connection_path: str = os.path.join(
-            self.path, self.db_name + self.db_ext
-        )
+        connection_path: str = os.path.join(self.path, self.db_name + self.db_ext)
 
         try:
             self.connection: sql.Connection = sql.connect(connection_path)

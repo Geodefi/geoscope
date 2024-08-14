@@ -1,5 +1,9 @@
 # -*- coding: utf-8 -*-
 
 
-class HighGasException(Exception):
+class HighGasError(Exception):
     """The gas price is too high."""
+
+
+class GasApiError(Exception):
+    """The gas api did not respond."""

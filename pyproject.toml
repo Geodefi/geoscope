@@ -1,18 +1,48 @@
 [tool.poetry]
-package-mode = false
 name = "geoscope"
-version = "0.1.0"
+version = "1.0.0"
 description = ""
-authors = ["crashbandicoott <bandicoot@geode.fi>"]
+authors = ["0xIceBear <admin@geode.fi>", "crashbandicoott <bandicoot@geode.fi>"]
 readme = "README.md"
+packages = [
+    { include = "src" }
+]
 
 [tool.poetry.dependencies]
-python = "^3.9"
-geodefi = "^2.1.1"
-tomli = "^2.0.1"
+python = ">=3.8,<=3.12"
+geodefi = "3.0.5"
 python-dotenv = "^1.0.1"
+click = "^8.1.7"
+
+[tool.poetry.group.dev.dependencies]
+pylint = "==3.0.3"
+ipykernel = "^6.29.4"
+pytest = "^8.2.1"
+black = "^24.4.2"
+pyinstaller = "^6.9.0"
+
+[tool.poetry.scripts]
+geoscope = "src.main:cli"
 
 
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.black]
+line-length = 100
+include = '\.pyi?$'
+exclude = '''
+/(
+    \.eggs
+  | \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | _build
+  | buck-out
+  | build
+  | dist
+)/
+'''

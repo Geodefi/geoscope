@@ -1,59 +1,45 @@
 {
-  "dir": ".geonious",
-  "chain_name": "holesky",
   "chains": {
-    "ethereum": {
-      "watchers": [],
-      "first_block": 0,
-      "portal": "0x000",
-      "oracle": "0x000",
-      "mode": "finalized"
-    },
-    "goerli": {
-      "watchers": [],
-      "first_block": 9490000,
-      "portal": "0x000",
-      "oracle": "0x000",
-      "mode": "finalized"
-    },
     "holesky": {
       "start": 1550551,
       "identifier": "latest",
-      "period": "1",
+      "period": "5",
       "interval": "12",
       "range": "3000",
-      "slots_per_epoch": 32,
       "execution_api": "https://rpc.ankr.com/eth_holesky/<API_KEY_EXECUTION>",
       "consensus_api": "https://rpc.ankr.com/premium-http/eth_holesky_beacon/<API_KEY_CONSENSUS>"
     }
   },
-  "directory": "telescope",
+  "network": {
+    "refresh_rate": 60,
+    "max_attempt": 20,
+    "attempt_rate": 0.1
+  },
   "logger": {
+    "no_stream": false,
+    "no_file": false,
     "dir": "logs",
     "level": "INFO",
     "when": "midnight",
     "interval": 1,
-    "backupCount": 30,
-    "no_stream": true,
-    "no_file": false,
-    "backup": 5
+    "backup": 30
   },
   "database": {
-    "directory": "db"
+    "dir": "db"
   },
-  "abi_directory": {
-    "folder_name": "./abis/",
-    "files": {
-      "gnosis": "Gnosis.json",
-      "portal": "Portal.json",
-      "gEth": "gETH.json"
+  "gas": {
+    "max_priority": 10,
+    "max_fee": 100,
+    "api": "https://gas.api.infura.io/v3/<API_KEY_GAS>/networks/1/suggestedGasFees",
+    "parser": {
+      "base": "low.suggestedMaxFeePerGas",
+      "priority": "low.suggestedMaxPriorityFeePerGas"
     }
   },
   "email": {
-    "target_emails": [],
-    "sender_email": "",
-    "subject": "Telescope Message",
-    "body": "This email is automatically generated. Do not respond.",
-    "filename": ""
+    "sender": "akif.gultekin99@gmail.com",
+    "receivers": ["admin@geode.fi", "admin@geode.fi", "admin@geode.fi"],
+    "smtp_server": "smtp.gmail.com",
+    "smtp_port": 587
   }
 }

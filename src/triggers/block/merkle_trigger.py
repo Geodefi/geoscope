@@ -3,7 +3,7 @@ from geode.globals import DEPOSIT_SIZE
 from geode.utils.wrappers import httpRequest
 from geode.utils.merkle import StandartMerkleTree
 
-from src.utils.chain import get_epoch
+from trash.chain import get_epoch
 from src.classes import Trigger
 from src.globals.config import CONFIG
 from src.globals.sdk import SDK
@@ -90,9 +90,7 @@ def calc_price(id: str, balances: dict):
 
 def confirm_price_change(id: int, price) -> bool:
     curr_price = SDK.Token.contract.functions.pricePerShare(int(id)).call()
-    max_price = (
-        int(curr_price) * int(100 + int(PRICE_CHANGE_THRESHOLD_PERCENTAGE))
-    ) // int(100)
+    max_price = (int(curr_price) * int(100 + int(PRICE_CHANGE_THRESHOLD_PERCENTAGE))) // int(100)
     return price >= max_price
 
 
@@ -163,9 +161,7 @@ class MerkleTrigger(Trigger):
 
     def __update_beacon_balances(self, pk_list: list):
         epoch = get_epoch()["epoch"]
-        beacon_balances = multithread(
-            process_beacon_balance, pk_list, repeat(epoch)
-        )
+        beacon_balances = multithread(process_beacon_balance, pk_list, repeat(epoch))
         if beacon_balances:
             self.update_many(dict(zip(pk_list, beacon_balances)), sort=False)
 
@@ -181,9 +177,7 @@ class MerkleTrigger(Trigger):
 
         return bals
 
-    def update_withdrawn_balances(
-        self, blocks: dict, val_indices: list
-    ) -> dict:
+    def update_withdrawn_balances(self, blocks: dict, val_indices: list) -> dict:
         withdrawn_balances: dict = self.__calc_withdrawn_balances(
             list(blocks.values()), val_indices
         )
@@ -230,9 +224,7 @@ class MerkleTrigger(Trigger):
         balances = [
             {
                 "beacon_balance": int(
-                    self.state.loc[
-                        self.state["pool_id"] == id, "beacon_balance"
-                    ].sum()
+                    self.state.loc[self.state["pool_id"] == id, "beacon_balance"].sum()
                 ),
                 "withdrawn_balance": int(
                     self.state.loc[
@@ -252,9 +244,7 @@ class MerkleTrigger(Trigger):
         prices = multithread(calc_price, ids, balances)
         return dict(zip(ids, prices))
 
-    def __should_update_chain(
-        self, prices: dict, effective_timestamp: int
-    ) -> bool:
+    def __should_update_chain(self, prices: dict, effective_timestamp: int) -> bool:
         # Validators:
         # TODO_finally ?
         #
@@ -266,9 +256,7 @@ class MerkleTrigger(Trigger):
         if effective_timestamp > last_update + MAX_MERKLE_DELAY_SECONDS:
             return True
 
-        confirmations = multithread(
-            confirm_price_change, prices.keys(), prices.values()
-        )
+        confirmations = multithread(confirm_price_change, prices.keys(), prices.values())
         return any(confirmations)
 
     def __update_chain(self, prices: dict):
@@ -283,10 +271,7 @@ class MerkleTrigger(Trigger):
 
         # pubkey, beacon_balance, withdrawn_balance
         x = self.state["beacon_balance"].to_dict()
-        y = (
-            self.state["withdrawn_balance"]
-            + self.state["fee_recipient_balance"]
-        ).to_dict()
+        y = (self.state["withdrawn_balance"] + self.state["fee_recipient_balance"]).to_dict()
 
         balance_leaves = [[id, x[id], y[id]] for id, p in x.items()]
         # merkle_balances = StandartMerkleTree().of(
@@ -311,9 +296,7 @@ class MerkleTrigger(Trigger):
 
         # WE ARE DONE WITH THE STATE
         prices = self.__calc_prices()
-        effective_ts = max(changes.values(), key=lambda x: x["timestamp"])[
-            "timestamp"
-        ]
+        effective_ts = max(changes.values(), key=lambda x: x["timestamp"])["timestamp"]
         if self.__should_update_chain(prices, effective_ts):
             self.__update_chain(prices)
 

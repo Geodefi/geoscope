@@ -1,3 +1,6 @@
+# -*- coding: utf-8 -*-
+
+
 import os
 import json
 from typing import List, Any
@@ -10,16 +13,65 @@ from eth_abi import encode, is_encodable
 from eth_typing import ChecksumAddress
 from hexbytes import HexBytes
 
-from src.globals import get_config, get_sdk
-from src.globals.constants import NULL_ADDRESS, WATCHER_URLS, ATTEMPT
-from src.exceptions.classes.gnosis import (
-    WatcherError,
-    ContractCreationError,
-)
 
-# from script.helpers import gasPrice
+from hexbytes import HexBytes
 
-from .owner import Owner
+from geodefi.globals.constants import ZERO_ADDRESS
+
+from src.globals import get_config, get_sdk, get_env
+
+from src.exceptions.classes.gnosis import WatcherError, ContractCreationError
+
+
+from src.exceptions.globals.sdk import InvalidPrivateKeyError
+
+
+class Owner(object):
+
+    def __init__(self):
+        if get_env().PRIVATE_KEY is None:
+            self.address = "OWNER_PRIVATE_KEY_WAS_NOT_PROVIDED"
+        else:
+            try:
+                address = get_sdk().w3.eth.account.from_key(get_env().PRIVATE_KEY).address
+            except Exception as e:
+                raise InvalidPrivateKeyError(
+                    "Oracle object cannot be created due to Invalid Private Key"
+                ) from e
+
+            if not get_sdk().w3.is_checksum_address(address):
+                address = get_sdk().w3.to_checksum_address(address)
+
+            self.private_key = get_env().PRIVATE_KEY
+            self.address = address
+
+    def __str__(self):
+        return f"{self.address}"
+
+    def getPrivateKey(self):
+        return self.private_key
+
+    def getAddress(self) -> ChecksumAddress:
+        return self.address
+
+    def getBalance(self) -> int:
+        """
+        returns: the balance of the account
+        """
+        return get_sdk().w3.eth.get_balance(self.address)
+
+    def getNonce(self) -> int:
+        """
+        returns: the nonce value (transaction count)
+        """
+        return get_sdk().w3.eth.get_transaction_count(self.address)
+
+
+# TODO: fix this:
+# need to get the WATCHER_URLS, ATTEMPT from config
+# TODO: check what is the state of this code tbh which will take time.
+WATCHER_URLS = []
+ATTEMPT = 10
 
 
 class Gnosis(object):
@@ -61,9 +113,7 @@ class Gnosis(object):
                 abi=self.abi, address=self.safe_address
             )
         except:
-            raise ContractCreationError(
-                "GeodeFinance: Gnosis- Invalid ABI or Contract Address"
-            )
+            raise ContractCreationError("GeodeFinance: Gnosis- Invalid ABI or Contract Address")
 
         # LOGGER.debug(f"The Gnosis is found at      : {self.safe_address}")
 
@@ -81,12 +131,8 @@ class Gnosis(object):
         :param balanceIncrease: The list of how much avax has been gained by staking per operator.
         """
 
-        assert len(param_types) == len(
-            param_args
-        ), "The types and args must have same length."
-        assert is_encodable(
-            param_types, param_args
-        ), "The types and args are not encodable."
+        assert len(param_types) == len(param_args), "The types and args must have same length."
+        assert is_encodable(param_types, param_args), "The types and args are not encodable."
 
         encoded_data = method_id + encode(param_types, param_args).hex()
 
@@ -109,9 +155,7 @@ class Gnosis(object):
         success: int = 0
         tx_receipt = None
         try:
-            success, tx_receipt = self.execTransaction(
-                contract_address, encoded_data, signature
-            )
+            success, tx_receipt = self.execTransaction(contract_address, encoded_data, signature)
 
         except ContractLogicError as e:
             # This spesific error is related with gnosis gas fees.
@@ -134,20 +178,14 @@ class Gnosis(object):
 
         safe_nonce = self.getNonce()
 
-        assert len(param_types) == len(
-            param_args
-        ), "The types and args must have same length."
-        assert is_encodable(
-            param_types, param_args
-        ), "The types and args are not encodable."
+        assert len(param_types) == len(param_args), "The types and args must have same length."
+        assert is_encodable(param_types, param_args), "The types and args are not encodable."
 
         # form data =
         encoded_data = method_id + encode(param_types, param_args).hex()
 
         # form Transaction hash by optimistic balance increase
-        txHash = self.getTransactionHash(
-            to=contract_address, data=encoded_data, nonce=safe_nonce
-        )
+        txHash = self.getTransactionHash(to=contract_address, data=encoded_data, nonce=safe_nonce)
 
         # get signature
         privkey = self.caller.getPrivateKey()
@@ -212,7 +250,7 @@ class Gnosis(object):
         :param private_key: hex-encoded private key
         """
         contract_transaction_hash = HexBytes(tx_hash)
-        account = Account.from_key(private_key)
+        account = sdk.w3.eth.account.from_key(private_key)
 
         # Sign
         signature = account.signHash(contract_transaction_hash)
@@ -226,9 +264,7 @@ class Gnosis(object):
         """
         return int(self.gnosisContract.functions.nonce().call())
 
-    def getTransactionHash(
-        self, to: ChecksumAddress, data: HexBytes, nonce: int
-    ) -> HexBytes:
+    def getTransactionHash(self, to: ChecksumAddress, data: HexBytes, nonce: int) -> HexBytes:
         """
         :param to: address of target contract (portal)
         :param data: hex-encoded input data
@@ -246,15 +282,13 @@ class Gnosis(object):
                 0,  # safeTxGas
                 0,  # baseGas
                 0,  # gasPrice
-                NULL_ADDRESS,  # gasToken
-                NULL_ADDRESS,  # refundReceiver
+                ZERO_ADDRESS,  # gasToken
+                ZERO_ADDRESS,  # refundReceiver
                 nonce,
             ).call()
         )
 
-    def execTransaction(
-        self, to: ChecksumAddress, data: HexBytes, signatures: str
-    ):
+    def execTransaction(self, to: ChecksumAddress, data: HexBytes, signatures: str):
         """
         :param to: address of target contract (portal)
         :param data: hex-encoded input data
@@ -268,8 +302,8 @@ class Gnosis(object):
             0,  # safeTxGas
             0,  # baseGas
             0,  # gasPrice
-            NULL_ADDRESS,  # gasToken
-            NULL_ADDRESS,  # refundReceiver
+            ZERO_ADDRESS,  # gasToken
+            ZERO_ADDRESS,  # refundReceiver
             signatures,
         ).buildTransaction({"from": self.caller.getAddress()})
 

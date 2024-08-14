@@ -3,7 +3,7 @@
 from web3.middleware import construct_sign_and_send_raw_middleware
 from geodefi import Geode
 
-from src.exceptions.globals.sdk import MissingPrivateKeyError, SDKError
+from src.exceptions import MissingPrivateKeyError, SDKError
 
 
 def __set_web3_account(sdk: Geode, private_key: str) -> Geode:
@@ -28,7 +28,8 @@ def __set_web3_account(sdk: Geode, private_key: str) -> Geode:
 
 
 def init_sdk(exec_api: str, cons_api: str, priv_key: str = None) -> Geode:
-    """Initializes the SDK with the provided APIs and private key. If private key is provided, sets the web3 account.
+    """Initializes the SDK with the provided APIs and private key.
+     If private key is provided, sets the web3 account.
 
     Args:
         exec_api (str): Execution API URL.
@@ -51,6 +52,4 @@ def init_sdk(exec_api: str, cons_api: str, priv_key: str = None) -> Geode:
         return sdk
 
     except Exception as e:
-        raise SDKError(
-            "Could not connect to sdk. Please check your configuration."
-        ) from e
+        raise SDKError("Could not connect to sdk. Please check your configuration.") from e

@@ -17,9 +17,7 @@ class TimeDaemon(Daemon):
         b = TimeDaemon(trigger=t)
     """
 
-    def __init__(
-        self, interval: int, trigger: Trigger, initial_delay: int
-    ) -> None:
+    def __init__(self, interval: int, trigger: Trigger, initial_delay: int) -> None:
         Daemon.__init__(
             self,
             interval=interval,

@@ -5,14 +5,8 @@
 # global CONFIG referance that requires initialization
 __CONFIG = None
 
-# global ENV referance that requires initialization
-__ENV = None
-
 # global SDK referance that requires initialization
 __SDK = None
-
-# global FLAGS referance that requires initialization
-__FLAGS = None
 
 # global referance for Constant variables, which also requires initialization
 __CONSTANTS = None
@@ -27,15 +21,6 @@ def set_config(value):
 
 def get_config():
     return __CONFIG
-
-
-def set_env(value):
-    global __ENV
-    __ENV = value
-
-
-def get_env():
-    return __ENV
 
 
 def set_sdk(value):

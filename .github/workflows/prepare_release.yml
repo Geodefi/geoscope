@@ -1,0 +1,45 @@
+name: Prepare Release
+
+permissions: 
+  id-token: write
+  contents: write
+
+on:
+  workflow_dispatch:
+
+jobs:
+  prepare-release:
+      name: Prepare release and create a PR
+      runs-on: ubuntu-latest
+      steps:
+        - name: Checkout
+          uses: actions/checkout@v4
+          with:
+            persist-credentials: false
+
+        - name: Bump version
+          id: changelog
+          uses: TriPSs/conventional-changelog-action@v5
+          with:
+            create-summary: true
+            git-message: "chore: release {version}"
+            tag-prefix: ""
+            version-file: pyproject.toml
+            version-path: tool.poetry.version
+            output-file: false
+            git-push: false
+            skip-on-empty: false
+            skip-ci: false
+
+        - name: Fail on missing args
+          if: ${{ !steps.changelog.outputs.version }}
+          run: >
+            echo "::error::No version output found for the prev step! Try restarting action" && exit 1
+
+        - name: Create Pull Request
+          uses: peter-evans/create-pull-request@v6
+          if: ${{ steps.changelog.outputs.version }}
+          with:
+            branch: pre-release-${{ steps.changelog.outputs.version }}
+            title: "chore(release): ${{ steps.changelog.outputs.version }}"
+            body: "This PR is generated automatically.\nIf you don't want this release to than close it and dont forget to delete the source branch."

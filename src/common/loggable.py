@@ -21,9 +21,9 @@ class Loggable:
 
         OR
 
-        from src.global import get_logger
-        get_logger().info("info message")
-        get_logger().error("error message")
+        from src.global.logger import log
+        log.info("info message")
+        log.error("error message")
 
 
     Attributes:
@@ -46,22 +46,18 @@ class Loggable:
         logger: Logger = getLogger()
         logger.setLevel(self.__level)
         logger.propagate = False
-        handlers: list = list()
+        handlers: list = []
         if not get_config().logger.no_stream:
             stream_handler: StreamHandler = self.__get_stream_handler()
             handlers.append(stream_handler)
             logger.addHandler(stream_handler)
-            logger.info(
-                f"Logger is provided with a stream handler. Level: {self.__level}"
-            )
+            logger.debug(f"Logger is provided with a stream handler. Level: {self.__level}")
 
         if not get_config().logger.no_file:
             file_handler: TimedRotatingFileHandler = self.__get_file_handler()
             handlers.append(file_handler)
             logger.addHandler(file_handler)
-            logger.info(
-                f"Logger is provided with a file handler. Level: {self.__level}"
-            )
+            logger.debug(f"Logger is provided with a file handler. Level: {self.__level}")
 
         basicConfig(handlers=handlers, force=True)
         return logger

@@ -22,7 +22,7 @@ from src.database.validators import (
 )
 from src.helpers.portal import get_StakeParams, get_all_pool_ids
 from src.utils.thread import multithread
-from src.utils.chain import get_epoch
+from trash.chain import get_epoch
 from src.actions.portal import call_reportBeacon
 
 
@@ -40,23 +40,17 @@ class NewMerkleTrigger(Trigger):
         It is a callable object. It is used to process the changes of the daemon. It can only have 1 action.
         """
 
-        Trigger.__init__(
-            self, name=self.name, action=self.price_and_balance_merkle
-        )
+        Trigger.__init__(self, name=self.name, action=self.price_and_balance_merkle)
         create_validators_table()
         get_logger().debug(f"{self.name} is initated.")
 
     def update_beacon_balances(self, vals: list[tuple]):
         epoch = get_epoch()["epoch"]
-        beacon_balances = multithread(
-            self.process_beacon_balance, vals, repeat(epoch)
-        )
+        beacon_balances = multithread(self.process_beacon_balance, vals, repeat(epoch))
         if beacon_balances:
             save_beacon_balances(vals, beacon_balances)
 
-    def process_beacon_balance(
-        self, pk_index_tuple: tuple, current_epoch: str
-    ) -> str:
+    def process_beacon_balance(self, pk_index_tuple: tuple, current_epoch: str) -> str:
         # THERE CAN BE 2 TYPE OF VALIDATORS HERE:
         #
         # 1. Deposited 31 eth, have not been reflected yet : beacon.status = deposited, pending:
@@ -104,15 +98,10 @@ class NewMerkleTrigger(Trigger):
         # TODO_task: TAKE THE LATEST GIVEN BLOCK WHEN CALCULATING
         secured = pool.secured
         # TODO_task: TAKE THE LATEST GIVEN BLOCK WHEN CALCULATING
-        supply = (
-            get_sdk().token.contract.functions.totalSupply(int(pool_id)).call()
-        )
+        supply = get_sdk().token.contract.functions.totalSupply(int(pool_id)).call()
         # balances[0] is the beacon balance, balances[1] is the withdrawn balance, balances[2] is the fee recepient balance
         price = (
-            (
-                (balances[0] + balances[1] + balances[2]) * BEACON_DENOMINATOR
-                + (surplus + secured)
-            )
+            ((balances[0] + balances[1] + balances[2]) * BEACON_DENOMINATOR + (surplus + secured))
             * ETHER_DENOMINATOR
         ) // supply
 
@@ -130,19 +119,13 @@ class NewMerkleTrigger(Trigger):
         return dict(zip(ids, prices))
 
     def confirm_price_change(self, pool_id: int, price) -> bool:
-        curr_price = (
-            get_sdk()
-            .Token.contract.functions.pricePerShare(int(pool_id))
-            .call()
+        curr_price = get_sdk().Token.contract.functions.pricePerShare(int(pool_id)).call()
+        max_price = (int(curr_price) * int(100 + int(PRICE_CHANGE_THRESHOLD_PERCENTAGE))) // int(
+            100
         )
-        max_price = (
-            int(curr_price) * int(100 + int(PRICE_CHANGE_THRESHOLD_PERCENTAGE))
-        ) // int(100)
         return price >= max_price
 
-    def should_update_chain(
-        self, prices: dict, effective_timestamp: int
-    ) -> bool:
+    def should_update_chain(self, prices: dict, effective_timestamp: int) -> bool:
         # Price:
         # - 24h (block) passed since the last update
         # - price changes >1% for a pool
@@ -151,9 +134,7 @@ class NewMerkleTrigger(Trigger):
         if effective_timestamp > last_update + MAX_MERKLE_DELAY_SECONDS:
             return True
 
-        confirmations = multithread(
-            self.confirm_price_change, prices.keys(), prices.values()
-        )
+        confirmations = multithread(self.confirm_price_change, prices.keys(), prices.values())
         return any(confirmations)
 
     def price_and_balance_merkle(self, *args, **kwargs) -> None:
@@ -197,9 +178,7 @@ class NewMerkleTrigger(Trigger):
             all_validators_count = 100
 
             # update chain
-            call_reportBeacon(
-                price_merkle_root, balances_merkle_root, all_validators_count
-            )
+            call_reportBeacon(price_merkle_root, balances_merkle_root, all_validators_count)
 
 
 # TODO: triggers that needs to be created to be able to run the merkle trigger

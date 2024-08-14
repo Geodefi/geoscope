@@ -43,35 +43,23 @@ def call_updateVerificationIndex(
             .build_transaction(get_gas())
         )
 
-        signed_tx = get_sdk().w3.eth.account.sign_transaction(
-            tx, get_env().PRIVATE_KEY
-        )
-        tx_hash: bytes = get_sdk().w3.eth.send_raw_transaction(
-            signed_tx.raw_transaction
-        )
+        signed_tx = get_sdk().w3.eth.account.sign_transaction(tx, get_env().PRIVATE_KEY)
+        tx_hash: bytes = get_sdk().w3.eth.send_raw_transaction(signed_tx.raw_transaction)
 
         get_logger().info(f"updateVerificationIndex tx is created: {tx_hash}")
 
         # Wait for the transaction to be mined, and get the transaction receipt
-        tx_receipt: TxReceipt = (
-            get_sdk().portal.w3.eth.wait_for_transaction_receipt(tx_hash)
-        )
-        get_logger().info(
-            f"updateVerificationIndex tx is concluded: {tx_receipt}"
-        )
+        tx_receipt: TxReceipt = get_sdk().portal.w3.eth.wait_for_transaction_receipt(tx_hash)
+        get_logger().info(f"updateVerificationIndex tx is concluded: {tx_receipt}")
 
         return True
 
     except TimeExhausted as e:
-        get_logger().error(
-            f"updateVerificationIndex tx could not conclude in time: {e}"
-        )
+        get_logger().error(f"updateVerificationIndex tx could not conclude in time: {e}")
         raise e
     except Exception as e:
         get_logger().error(f"updateVerificationIndex tx failed: {e}")
-        raise CallFailedError(
-            "Failed to call updateVerificationIndex on portal contract"
-        ) from e
+        raise CallFailedError("Failed to call updateVerificationIndex on portal contract") from e
 
 
 # pylint: disable-next=invalid-name
@@ -112,19 +100,13 @@ def call_reportBeacon(
             .build_transaction(get_gas())
         )
 
-        signed_tx = get_sdk().w3.eth.account.sign_transaction(
-            tx, get_env().PRIVATE_KEY
-        )
-        tx_hash: bytes = get_sdk().w3.eth.send_raw_transaction(
-            signed_tx.raw_transaction
-        )
+        signed_tx = get_sdk().w3.eth.account.sign_transaction(tx, get_env().PRIVATE_KEY)
+        tx_hash: bytes = get_sdk().w3.eth.send_raw_transaction(signed_tx.raw_transaction)
 
         get_logger().info(f"reportBeacon tx is created: {tx_hash}")
 
         # Wait for the transaction to be mined, and get the transaction receipt
-        tx_receipt: TxReceipt = (
-            get_sdk().portal.w3.eth.wait_for_transaction_receipt(tx_hash)
-        )
+        tx_receipt: TxReceipt = get_sdk().portal.w3.eth.wait_for_transaction_receipt(tx_hash)
         get_logger().info(f"reportBeacon tx is concluded: {tx_receipt}")
 
         return True
@@ -134,9 +116,7 @@ def call_reportBeacon(
         raise e
     except Exception as e:
         get_logger().error(f"reportBeacon tx failed: {e}")
-        raise CallFailedError(
-            "Failed to call reportBeacon on portal contract"
-        ) from e
+        raise CallFailedError("Failed to call reportBeacon on portal contract") from e
 
 
 # pylint: disable-next=invalid-name
@@ -164,24 +144,16 @@ def call_blameProposal(pk: str) -> bool:
 
     try:
         tx: dict = (
-            get_sdk()
-            .portal.contract.functions.blameProposal(pk)
-            .build_transaction(get_gas())
+            get_sdk().portal.contract.functions.blameProposal(pk).build_transaction(get_gas())
         )
 
-        signed_tx = get_sdk().w3.eth.account.sign_transaction(
-            tx, get_env().PRIVATE_KEY
-        )
-        tx_hash: bytes = get_sdk().w3.eth.send_raw_transaction(
-            signed_tx.raw_transaction
-        )
+        signed_tx = get_sdk().w3.eth.account.sign_transaction(tx, get_env().PRIVATE_KEY)
+        tx_hash: bytes = get_sdk().w3.eth.send_raw_transaction(signed_tx.raw_transaction)
 
         get_logger().info(f"blameProposal tx is created: {tx_hash}")
 
         # Wait for the transaction to be mined, and get the transaction receipt
-        tx_receipt: TxReceipt = (
-            get_sdk().portal.w3.eth.wait_for_transaction_receipt(tx_hash)
-        )
+        tx_receipt: TxReceipt = get_sdk().portal.w3.eth.wait_for_transaction_receipt(tx_hash)
         get_logger().info(f"blameProposal tx is concluded: {tx_receipt}")
 
         return True
@@ -191,9 +163,7 @@ def call_blameProposal(pk: str) -> bool:
         raise e
     except Exception as e:
         get_logger().error(f"blameProposal tx failed: {e}")
-        raise CallFailedError(
-            "Failed to call blameProposal on portal contract"
-        ) from e
+        raise CallFailedError("Failed to call blameProposal on portal contract") from e
 
 
 # pylint: disable-next=invalid-name
@@ -224,7 +194,7 @@ def call_blameExit(
         CallFailedError: Raised if the proposeStake call fails.
     """
 
-    get_logger().debug("Calling blameExit() from portal")
+    get_logger().debug(f"Calling blameExit for {pk}")
 
     try:
         tx: dict = (
@@ -234,20 +204,14 @@ def call_blameExit(
             )
             .build_transaction(get_gas())
         )
-
-        signed_tx = get_sdk().w3.eth.account.sign_transaction(
-            tx, get_env().PRIVATE_KEY
-        )
-        tx_hash: bytes = get_sdk().w3.eth.send_raw_transaction(
-            signed_tx.raw_transaction
-        )
+        # TODO: any of these sign_transaction etc stuff should be transact.
+        signed_tx = get_sdk().w3.eth.account.sign_transaction(tx, get_env().PRIVATE_KEY)
+        tx_hash: bytes = get_sdk().w3.eth.send_raw_transaction(signed_tx.raw_transaction)
 
         get_logger().info(f"blameExit tx is created: {tx_hash}")
 
         # Wait for the transaction to be mined, and get the transaction receipt
-        tx_receipt: TxReceipt = (
-            get_sdk().portal.w3.eth.wait_for_transaction_receipt(tx_hash)
-        )
+        tx_receipt: TxReceipt = get_sdk().portal.w3.eth.wait_for_transaction_receipt(tx_hash)
         get_logger().info(f"blameExit tx is concluded: {tx_receipt}")
 
         return True
@@ -257,6 +221,4 @@ def call_blameExit(
         raise e
     except Exception as e:
         get_logger().error(f"blameExit tx failed: {e}")
-        raise CallFailedError(
-            "Failed to call blameExit on portal contract"
-        ) from e
+        raise CallFailedError("Failed to call blameExit on portal contract") from e

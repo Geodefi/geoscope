@@ -1,8 +1,7 @@
 # -*- coding: utf-8 -*-
 
 from src.classes import Daemon, Trigger
-from src.globals import get_logger, get_sdk
-from src.globals.constants import chain
+from src.globals import get_sdk, get_logger, get_constants
 
 
 class BlockDaemon(Daemon):
@@ -27,7 +26,7 @@ class BlockDaemon(Daemon):
     def __init__(
         self,
         trigger: Trigger,
-        block_period: int = int(chain.period),
+        block_period: int,
     ) -> None:
         """Initializes a BlockDaemon object. The daemon will run the triggers on every X block.
 
@@ -36,6 +35,7 @@ class BlockDaemon(Daemon):
             block_period (int, optional): number of blocks to wait before \
                 running the triggers. Default is what is set in the config.
         """
+        chain = get_constants().chain
         Daemon.__init__(
             self,
             interval=int(chain.interval),
@@ -69,9 +69,9 @@ class BlockDaemon(Daemon):
             self.__recent_block = curr_block.number
             get_logger().debug(f"{self.trigger.name} will be triggered")
             return curr_block
-        else:
-            get_logger().debug(
-                f"Block period have not been met yet.\
-                Expected block:{self.__recent_block + self.block_period}"
-            )
-            return None
+
+        get_logger().debug(
+            f"Block period have not been met yet.\
+            Expected block:{self.__recent_block + self.block_period}"
+        )
+        return None

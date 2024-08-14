@@ -4,7 +4,6 @@ from typing import Any, Callable
 from multiprocessing.pool import ThreadPool
 from threading import current_thread
 from functools import wraps
-from multiprocessing.pool import ThreadPool
 
 from src.globals import get_logger
 
@@ -23,9 +22,7 @@ def rename_worker(fn):
 ThreadPool.Process = staticmethod(rename_worker(ThreadPool.Process))
 
 
-def multithread(
-    func: Callable, *args, num_threads: int = None, chunk_size: int = 1
-) -> list[Any]:
+def multithread(func: Callable, *args, num_threads: int = None, chunk_size: int = 1) -> list[Any]:
     """Turn function calls into multithread with help of iterables arguments and return the results.
 
     Args:
