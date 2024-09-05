@@ -27,6 +27,6 @@ def get_version():
         except Exception:
             import importlib
 
-            return importlib.metadata.version("geonius")
+            return importlib.metadata.version("Geoscope")
     except Exception:
         return "1.0.0"

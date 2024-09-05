@@ -1,14 +1,10 @@
 # -*- coding: utf-8 -*-
 
-from datetime import datetime
-from itertools import repeat
-from geodefi.globals import VALIDATOR_STATE
-
 from src.classes import Database
-from src.globals import get_logger, get_sdk
-from src.utils.thread import multithread
-from src.helpers.portal import get_StakeParams
-from src.exceptions.classes.database import DatabaseError, DatabaseMismatchError
+from src.exceptions import DatabaseError
+from src.globals import get_logger
+from src.helpers.portal import fetch_proposed_pubkeys
+from src.helpers.validators import fetch_validators_batch
 
 
 def create_validators_table() -> None:
@@ -20,24 +16,26 @@ def create_validators_table() -> None:
 
     try:
         with Database() as db:
-            # fallback just records if operator is set as fallback.
+            # TODO: not sure how to calculate the fee_recipient_balance
             db.execute(
                 """
                 CREATE TABLE IF NOT EXISTS Validators (
-                    portal_index INTEGER NOT NULL UNIQUE,
-                    beacon_index INTEGER NOT NULL UNIQUE,
                     pubkey TEXT NOT NULL PRIMARY KEY,
+                    portal_index INTEGER NOT NULL UNIQUE,
+                    portal_state INTEGER NOT NULL,
                     pool_id TEXT NOT NULL,
                     operator_id TEXT NOT NULL,
-                    local_state INT NOT NULL,
-                    portal_state INT NOT NULL,
-                    signature31 INTEGER NOT NULL,
-                    withdrawal_credentials TEXT NOT NULL,
-                    exit_epoch INTEGER,
+                    pool_fee TEXT NOT NULL,
+                    operator_fee TEXT NOT NULL,
+                    infrastructure_fee TEXT NOT NULL,
+                    signature31 TEXT NOT NULL,
+                    beacon_index INTEGER UNIQUE,
+                    beacon_state TEXT,
+                    withdrawal_credentials TEXT,
+                    exit_epoch TEXT,
+                    beacon_balance TEXT,
                     withdrawn_balance TEXT,
-                    fee_recipient_balance TEXT,
-                    geoscope_verification TEXT NOT NULL DEFAULT 'pending',
-                    geoscope_verification_timestamp INTEGER NOT NULL DEFAULT 0,
+                    fee_recipient_balance TEXT 
                 )
                 """
             )
@@ -67,45 +65,6 @@ def reinitialize_validators_table() -> None:
     create_validators_table()
 
 
-def fetch_validator(pubkey: str) -> dict:
-    """Fetches the data for a validator with the given pubkey. Returns the gathered data.
-
-    Args:
-        pubkey (str): public key of the validator
-
-    Returns:
-        dict: dictionary containing the validator info
-    """
-
-    val = get_sdk().portal.validator(pubkey)
-    return {
-        "portal_index": val.portal_index,  # constant
-        "beacon_index": val.beacon_index,  # constant
-        "pubkey": val.pubkey,  # constant
-        "pool_id": val.poolId,  # constant
-        "operator_id": val.operatorId,  # constant
-        "local_state": val.portal_state,
-        "portal_state": val.portal_state,
-        "signature31": val.signature31,  # constant
-        "withdrawal_credentials": val.withdrawal_credentials,  # constant
-        "exit_epoch": val.exit_epoch,  # can be set after proposal tx is mined
-        "balance": val.balance,
-    }
-
-
-def fetch_validators_batch(pks: list[str]) -> list[dict]:
-    """Fetches the data for validators within the given pks list. Returns the gathered data.
-
-    Args:
-        pks (list[str]): pubkeys that will be fetched
-
-    Returns:
-        list[dict]: list of dictionaries containing the validator info
-    """
-
-    return multithread(fetch_validator, pks)
-
-
 def insert_many_validators(new_validators: list[dict]) -> None:
     """Inserts the given validators data into the database.
 
@@ -119,19 +78,25 @@ def insert_many_validators(new_validators: list[dict]) -> None:
     try:
         with Database() as db:
             db.executemany(
-                "INSERT INTO Validators VALUES (?,?,?,?,?,?,?,?,?,?)",
+                "INSERT INTO Validators VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
                 [
                     (
-                        a["portal_index"],
-                        a["beacon_index"],
                         a["pubkey"],
+                        int(a["portal_index"]),
+                        a["portal_state"],
                         a["pool_id"],
                         a["operator_id"],
-                        int(a["local_state"]),
-                        int(a["portal_state"]),
+                        a["pool_fee"],
+                        a["operator_fee"],
+                        a["infrastructure_fee"],
                         a["signature31"],
+                        a["beacon_index"],
+                        int(a["beacon_state"]),
                         a["withdrawal_credentials"],
                         a["exit_epoch"],
+                        0,
+                        0,
+                        0,
                     )
                     for a in new_validators
                 ],
@@ -149,99 +114,50 @@ def fill_validators_table(pks: list[str]) -> None:
     insert_many_validators(fetch_validators_batch(pks))
 
 
-def save_local_state(pubkey: str, local_state: VALIDATOR_STATE) -> None:
-    """Sets local_state on db when it changes.
-
-    Args:
-        pubkey (str): public key of the validator
-        local_state (VALIDATOR_STATE): new local state of the validator
-
-    Raises:
-        DatabaseError: Error updating local state of validator
-    """
-
-    try:
-        with Database() as db:
-            db.execute(
-                """
-                UPDATE Validators 
-                SET local_storage = ?
-                WHERE pubkey = ?
-                """,
-                (int(local_state), pubkey),
-            )
-        get_logger().debug(f"Updated local_state to: {local_state}")
-    except Exception as e:
-        raise DatabaseError(
-            f"Error updating local state of validator with pubkey {pubkey} \
-                            and state {local_state} to table Validators"
-        ) from e
+def update_portal_validators(first_block, last_block) -> None:
+    pks: list[str] = fetch_proposed_pubkeys(first_block, last_block)
+    fill_validators_table(pks)
 
 
-def save_portal_state(pubkey: str, portal_state: VALIDATOR_STATE) -> None:
-    """Sets portal_state on db when it changes on chain.
-
-    Args:
-        pubkey (str): public key of the validator
-        portal_state (VALIDATOR_STATE): new portal state of the validator
-
-    Raises:
-        DatabaseError: Error updating portal state of validator
-    """
-
-    try:
-        with Database() as db:
-            db.execute(
-                """
-                UPDATE Validators 
-                SET portal_state = ?
-                WHERE pubkey = ?
-                """,
-                (int(portal_state), pubkey),
-            )
-            get_logger().debug(f"Updated portal_state to: {portal_state}")
-    except Exception as e:
-        raise DatabaseError(
-            f"Error updating portal state of validator with pubkey {pubkey} \
-                            and state {portal_state} to table Validators"
-        ) from e
-
-
-def save_exit_epoch(pubkey: str, exit_epoch: str) -> None:
-    """Sets exit_epoch on db when it changes on chain.
-
-    Args:
-        pubkey (str): public key of the validator
-        exit_epoch (str): new exit epoch of the validator
-
-    Raises:
-        DatabaseError: Error updating exit epoch of validator
-    """
-    # did not we
-    try:
-        get_logger().debug(f"Updated the exit epoch: {exit_epoch}")
-        with Database() as db:
-            db.execute(
-                """
-                UPDATE Validators 
-                SET exit_epoch = ?
-                WHERE pubkey = ?
-                """,
-                (int(exit_epoch), pubkey),
-            )
-    except Exception as e:
-        raise DatabaseError(
-            f"Error updating exit epoch of validator with pubkey {pubkey} \
-                            and epoch {exit_epoch} to table Validators"
-        ) from e
-
-
-def save_beacon_balances(pubkeys: list[str], balances: list[str]) -> None:
+def update_beacon_values(validators: list[dict]) -> None:
     """Saves the beacon balances of the validators with the given pubkeys.
 
     Args:
-        pubkeys (list[str]): public keys of the validators
-        balances (list[str]): balances of the validators
+        validators (list[dict]): list of dicts of parsed validator data:
+        - beacon_index
+        - beacon_status
+        - withdrawal_credentials
+        - exit_epoch
+        - beacon_balance
+        - pubkey
+
+    Raises:
+        DatabaseError: Error updating beacon balances of validators
+    """
+    # TODO: turn all positional  params like "?" into named params like ":beacon_index", safer.
+    try:
+        with Database() as db:
+            db.executemany(
+                """UPDATE Validators 
+                    SET beacon_index = :beacon_index,
+                        beacon_status = :beacon_status,
+                        withdrawal_credentials = :withdrawal_credentials,
+                        exit_epoch = :exit_epoch,
+                        beacon_balance = :beacon_balance
+                    WHERE pubkey = :pubkey
+                """,
+                validators,
+            )
+        get_logger().debug(f"Updated beaconchain related data for {len(validators)} validators")
+    except Exception as e:
+        raise DatabaseError(f"Error updating beaconchain related data on table Validators") from e
+
+
+def increase_withdrawn_balances(withdrawn_balances: list[dict]):
+    """_summary_
+
+    Args:
+        withdrawn_balances (list[dict]): list of dictionaries: {"validator_index": int, "amount": int}
 
     Raises:
         DatabaseError: Error updating beacon balances of validators
@@ -249,308 +165,44 @@ def save_beacon_balances(pubkeys: list[str], balances: list[str]) -> None:
 
     try:
         with Database() as db:
-            db.executemany(
-                "UPDATE Validators SET beacon_balance = ? WHERE pubkey = ?",
-                zip(balances, pubkeys),
+            # Note that, we use TEXT on withdrawn_balance, thus we can not simply do withdrawn_balance + :amount here.
+            # So we will first fetch the current balances and than increase before setting on db again
+
+            validator_indices = withdrawn_balances.keys()
+            placeholders = ",".join("?" * len(validator_indices))
+            db.execute(
+                f"SELECT validator_index, withdrawn_balance FROM Validators WHERE validator_index IN ({placeholders})",
+                validator_indices,
             )
-        get_logger().debug(f"Updated beacon balances of {len(pubkeys)} validators")
-    except Exception as e:
-        raise DatabaseError(
-            f"Error updating beacon balances of validators {pubkeys} to table Validators"
-        ) from e
+            balances = db.fetchall()
 
+            updated_balances = []
+            for validator_index, balance in balances:
+                new_balance = int(withdrawn_balances[validator_index]) + int(balance)
 
-def update_geoscope_verification_pks(pubkeys: list[str], geoscope_verification: str) -> None:
-    """Updates the verification index of the given public keys.
-
-    Args:
-        pubkeys (list[str]): public keys of the validators
-        geoscope_verification (str): verification status of the validators either valid or invalid
-
-    Raises:
-        DatabaseError: Error updating verification index of validators
-    """
-
-    try:
-        ts = int(datetime.now().timestamp())
-        with Database() as db:
-            db.executemany(
-                """
-                UPDATE Validators 
-                SET geoscope_verification = ?,
-                geoscope_verification_timestamp = ? 
-                WHERE pubkey = ?
-                """,
-                zip(repeat(geoscope_verification), repeat(ts), pubkeys),
-            )
-        get_logger().debug(f"Updated verification index of {len(pubkeys)} validators")
-    except Exception as e:
-        raise DatabaseError(
-            f"Error updating geoscope_verification and its timestamp of validators {pubkeys} to table Validators"
-        ) from e
-
-
-def update_geoscope_verification_state(
-    new_verification_state: str,
-    old_verification_state: str,
-    new_verification_index: int = None,
-) -> None:
-    """Updates validators upto the verification index.
-
-    Args:
-        new_verification_index (int): new verification index
-
-    Raises:
-        DatabaseError: Error updating verification index of validators
-    """
-
-    # TODO: discuss if not checking local_state here is correct
-    try:
-        if new_verification_index is None:
-            with Database() as db:
-                db.execute(
-                    """
-                    UPDATE Validators 
-                    SET geoscope_verification = ?
-                    WHERE geoscope_verification = ?
-                    """,
-                    (new_verification_state, old_verification_state),
+                updated_balances.append(
+                    {
+                        "validator_index": validator_index,
+                        "withdrawn_balance": str(new_balance),
+                    }
                 )
-        else:
-            with Database() as db:
-                db.execute(
-                    """
-                    UPDATE Validators 
-                    SET geoscope_verification = ?
-                    WHERE portal_index < ?
-                    AND geoscope_verification = ?
-                    """,
-                    (
-                        new_verification_state,
-                        new_verification_index,
-                        old_verification_state,
-                    ),
-                )
-        get_logger().debug(f"Updated verification index of validators in proposed state")
-    except Exception as e:
-        raise DatabaseError(
-            f"Error updating verification index of validators in proposed state to table Validators"
-        ) from e
 
-
-def fetch_invalid_pks() -> list[str]:
-    """Fetches the data of the validators that are in the proposed state.
-
-    Returns:
-        list[str]: list of public keys of validators in proposed state
-
-    Raises:
-        DatabaseError: Error fetching validators from table
-    """
-    verification_index: int = get_StakeParams()[4]
-
-    try:
-        with Database() as db:
-            db.execute(
-                """
-                SELECT pubkey FROM Validators 
-                WHERE local_state = ?  
-                AND portal_index < ?
-                AND geoscope_verification = ?
-                ORDER BY pool_id
+            db.executemany(
+                """UPDATE Validators 
+                    SET withdrawn_balance = :withdrawn_balance
+                    WHERE validator_index = :validator_index
                 """,
-                (int(VALIDATOR_STATE.PROPOSED), verification_index, "invalid"),
+                updated_balances,
             )
-            invalid_pks: list[str] = db.fetchall()
-            get_logger().info(f"{len(invalid_pks)} invalid public keys are fetched.")
-            get_logger().debug(",".join(map(str, invalid_pks)))
+        get_logger().debug(f"Updated withdrawn balances for {len(withdrawn_balances)} validators")
 
-            return invalid_pks
     except Exception as e:
-        raise DatabaseError(f"Error fetching invalid validators from table Validators") from e
+        raise DatabaseError(f"Error updating withdrawn balances for on table Validators") from e
 
 
-def fetch_new_verification_index() -> int:
-    """Fetches the new verification index from the database.
-
-    Returns:
-        int: new verification index
-
-    Raises:
-        DatabaseError: Error fetching new verification index from table
-    """
-
-    try:
-        with Database() as db:
-            db.execute(
-                """
-                SELECT MAX(portal_index) 
-                FROM Validators
-                WHERE local_state = ?
-                AND geoscope_verification = ?
-                """,
-                (int(VALIDATOR_STATE.PROPOSED), "valid"),
-            )
-            return db.fetchone()[0]
-    except Exception as e:
-        raise DatabaseError(f"Error fetching new verification index from table Validators") from e
-
-
-def fetch_min_max_ts() -> tuple:
-    """Fetches the minimum and maximum timestamp of the validators in the database.
-
-    Returns:
-        tuple: tuple containing the minimum and maximum timestamp
-    """
-
-    verification_index: int = get_StakeParams()[4]
-
-    try:
-        with Database() as db:
-            db.execute(
-                """
-                SELECT MIN(geoscope_verification_timestamp), MAX(geoscope_verification_timestamp)
-                FROM Validators
-                WHERE geoscope_verification_timestamp > 0
-                AND local_state = ?
-                AND portal_index < ?
-                AND geoscope_verification = ?
-                """,
-                (int(VALIDATOR_STATE.PROPOSED), verification_index, "valid"),
-            )
-            return db.fetchone()
-    except Exception as e:
-        raise DatabaseError(
-            f"Error fetching min and max timestamp of validators from table Validators"
-        ) from e
-
-
-def fetch_valid_val_count() -> int:
-    """Fetches the count of validators that are verified and valid.
-
-    Returns:
-        int: count of validators in proposed state and verified as valid and still not verified on chain
-
-    Raises:
-        DatabaseError: Error fetching validators from table
-    """
-
-    verification_index: int = get_StakeParams()[4]
-
-    try:
-        with Database() as db:
-            db.execute(
-                """
-                SELECT COUNT(*) FROM Validators 
-                WHERE local_state = ?
-                AND portal_index < ?
-                AND geoscope_verification = ?
-                """,
-                (int(VALIDATOR_STATE.PROPOSED), verification_index, "valid"),
-            )
-            count: int = db.fetchone()[0]
-            get_logger().info(f"{count} valid validators are fetched.")
-            get_logger().debug(count)
-
-            return count
-    except Exception as e:
-        raise DatabaseError(f"Error fetching valid validators from table Validators") from e
-
-
-def fetch_active_vals() -> list[tuple]:
-    """Fetches the data of the validators that are staked and active.
-
-    Returns:
-        list[str]: list of public keys of validators in proposed state
-
-    Raises:
-        DatabaseError: Error fetching validators from table
-    """
-    try:
-        with Database() as db:
-            db.execute(
-                """
-                SELECT pubkey, beacon_index FROM Validators 
-                WHERE local_state = ?
-                ORDER BY beacon_index
-                """,
-                (int(VALIDATOR_STATE.ACTIVE)),
-            )
-            active_vals: list[str] = db.fetchall()
-            get_logger().info(f"{len(active_vals)} active validators are fetched.")
-            get_logger().debug(",".join(map(str, active_vals)))
-
-            return active_vals
-    except Exception as e:
-        raise DatabaseError(f"Error fetching active validators from table Validators") from e
-
-
-def fetch_verified_pks() -> list[str]:
-    """Fetches the data of the validators that are in the proposed state.
-
-    Returns:
-        list[str]: list of public keys of validators in proposed state
-
-    Raises:
-        DatabaseError: Error fetching validators from table
-    """
-    verification_index: int = get_StakeParams()[4]
-
-    try:
-        with Database() as db:
-            # TODO: check if portal_index should be < or <=, change on geonius if <=
-            db.execute(
-                """
-                SELECT pubkey FROM Validators 
-                WHERE local_state = ?  
-                AND portal_index < ?
-                ORDER BY pool_id
-                """,
-                (int(VALIDATOR_STATE.PROPOSED), verification_index),
-            )
-            approved_pks: list[str] = db.fetchall()
-            get_logger().info(f"{len(approved_pks)} verified public keys are fetched.")
-            get_logger().debug(",".join(map(str, approved_pks)))
-
-            return approved_pks
-    except Exception as e:
-        raise DatabaseError(f"Error fetching verified validators from table Validators") from e
-
-
-def fetch_unverified_vals() -> list[tuple]:
-    """Fetches the data of the validators that are in the proposed state.
-
-    Returns:
-        list[str]: list of public keys of validators in proposed state
-
-    Raises:
-        DatabaseError: Error fetching validators from table
-    """
-    verification_index: int = get_StakeParams()[4]
-
-    try:
-        with Database() as db:
-            # TODO: check if portal_index should be > or >=
-            db.execute(
-                """
-                SELECT pubkey, portal_index, pool_id, signature31, withdrawal_credentials FROM Validators 
-                WHERE local_state = ?  
-                AND portal_index > ?
-                ORDER BY portal_index
-                """,
-                (int(VALIDATOR_STATE.PROPOSED), verification_index),
-            )
-            unverified_vals: list[tuple] = db.fetchall()
-            get_logger().info(f"{len(unverified_vals)} new unverified validators are detected.")
-            get_logger().debug(",".join(map(str, unverified_vals)))
-
-            return unverified_vals
-    except Exception as e:
-        raise DatabaseError(f"Error fetching unverified validators from table Validators") from e
-
-
-def check_pk_in_db(pubkey: str) -> bool:
-    """Checks if the given public key is in the database.
+def check_pubkey(pubkey: str) -> bool:
+    """Checks if a given pubkey is saved in the Database.
+        Also meaning if a pubkey is created through the Portal until the latest processed slot.
 
     Args:
         pubkey (str): public key of the validator
@@ -569,62 +221,22 @@ def check_pk_in_db(pubkey: str) -> bool:
         raise DatabaseError(f"Error checking if pubkey {pubkey} is in table Validators") from e
 
 
-def fetch_pool_id(pubkey: str) -> str:
-    """Fetches the pool_id of the validator with the given pubkey.
+def check_beacon_index(idx: int) -> bool:
+    """Checks if a given beacon chain index is saved in the Database.
+        Also meaning if a pubkey is created through the Portal until the latest processed slot.
 
     Args:
         pubkey (str): public key of the validator
 
     Returns:
-        int: pool_id of the validator
-    """
+        bool: True if the public key is in the database, False otherwise
 
+    Raises:
+        DatabaseError: Error checking if pubkey is in table Validators
+    """
     try:
         with Database() as db:
-            db.execute("SELECT pool_id FROM Validators WHERE pubkey = ?", (pubkey,))
-            return db.fetchone()[0]
+            db.execute("SELECT * FROM Validators WHERE beacon_index = ?", (idx,))
+            return db.fetchone() is not None
     except Exception as e:
-        raise DatabaseMismatchError(f"Validator pubkey {pubkey} not found in the database") from e
-
-
-def fetch_balances_by_pool_id(pool_id: str, validator_states: list) -> list[tuple]:
-    """Fetches the balances of the validators with the given pool_id.
-
-    Args:
-        pool_id (str): pool_id of the validators
-        validator_states (list): list of states that the validators should have
-
-    Returns:
-        list: list of tuples containing the balances of the validators
-    """
-
-    try:
-        with Database() as db:
-            db.execute(
-                f"""
-                SELECT beacon_balance, withdrawn_balance, fee_recipient_balance
-                FROM Validators
-                WHERE pool_id = ?
-                AND beacon_state IN ({"?" * len(validator_states)})
-                """,
-                tuple([pool_id] + validator_states),
-            )
-            return db.fetchall()
-    except Exception as e:
-        raise DatabaseMismatchError(
-            f"Error fetching balances of validators with pool_id {pool_id}"
-        ) from e
-
-
-def fetch_balances_by_pool_id_batch(pool_ids: list[str], validator_states: list) -> list[tuple]:
-    """Fetches the balances of the validators with the given pool_ids.
-
-    Args:
-        pool_ids (list[str]): pool_ids of the validators
-        validator_states (list): list of states that the validators should have
-
-    Returns:
-        list: list of tuples containing the balances of the validators
-    """
-
-    return multithread(fetch_balances_by_pool_id, pool_ids, repeat(validator_states))
+        raise DatabaseError(f"Error checking if index {idx} is in table Validators") from e

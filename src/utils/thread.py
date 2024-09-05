@@ -34,7 +34,7 @@ def multithread(func: Callable, *args, num_threads: int = None, chunk_size: int 
     Returns:
         list[Any]: list of results from the function calls
     """
-    get_logger().debug(f"Calling {func.__name__:^21} multithreaded.")
+    # get_logger().debug(f"Calling {func.__name__:^21} multithreaded.")
     with ThreadPool(processes=num_threads) as pool:
         res: Any = pool.starmap(func, zip(*args), chunksize=chunk_size)
 

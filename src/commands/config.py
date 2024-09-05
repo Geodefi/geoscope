@@ -7,7 +7,7 @@ from src.utils.env import (
 
 @click.option(
     "--chain",
-    envvar="GEONIUS_CHAIN",
+    envvar="GEOSCOPE_CHAIN",
     required=True,
     type=click.Choice(["holesky", "ethereum"]),
     prompt="You forgot to specify the chain:",
@@ -16,16 +16,16 @@ from src.utils.env import (
 )
 @click.option(
     "--main-dir",
-    envvar="GEONIUS_DIR",
+    envvar="GEOSCOPE_DIR",
     required=False,
     type=click.STRING,
     is_eager=False,
     callback=load_env,
-    default=".geonius",
+    default=".geoscope",
     help="Relative path for the directory that will be used to store data."
-    " Default is ./.geonius",
+    " Default is ./.geoscope",
 )
 @click.command(help="Start geoscope.")
 def main(**kwargs):
-    """TODO: this comment"""
+    """TODO: (later)"""
     pass

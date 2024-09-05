@@ -48,19 +48,16 @@ class Owner(object):
     def __str__(self):
         return f"{self.address}"
 
-    def getPrivateKey(self):
-        return self.private_key
-
-    def getAddress(self) -> ChecksumAddress:
+    def get_address(self) -> ChecksumAddress:
         return self.address
 
-    def getBalance(self) -> int:
+    def get_balance(self) -> int:
         """
         returns: the balance of the account
         """
         return get_sdk().w3.eth.get_balance(self.address)
 
-    def getNonce(self) -> int:
+    def get_nonce(self) -> int:
         """
         returns: the nonce value (transaction count)
         """
@@ -69,7 +66,8 @@ class Owner(object):
 
 # TODO: fix this:
 # need to get the WATCHER_URLS, ATTEMPT from config
-# TODO: check what is the state of this code tbh which will take time.
+# check what is the state of this code tbh which will take time.
+# THIS WHOLE THING IS SCREAMING, FIX IT LAST.
 WATCHER_URLS = []
 ATTEMPT = 10
 

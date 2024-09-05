@@ -12,7 +12,6 @@ def cli() -> None:
     pass
 
 
-# geoscope
 cli.add_command(run, "run")
 cli.add_command(config, "config")
 

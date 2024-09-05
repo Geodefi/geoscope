@@ -133,7 +133,7 @@ class Daemon:
             trigger [Trigger] : an initialized Trigger instance
         """
         if isinstance(trigger, Trigger):
-            self.trigger: list[Trigger] = trigger
+            self.trigger: Trigger = trigger
         else:
             raise TypeError("Given trigger is not an instince of Trigger")
 
@@ -153,7 +153,7 @@ class Daemon:
 
         while not self.stop_flag.wait(self.interval):
             try:
-                result: bool = self.__task()
+                result = self.__task()
 
                 if result:
                     self.trigger.process(result)
@@ -201,7 +201,7 @@ class Daemon:
                     send_email(
                         "Could not get some events from the chain",
                         " There was an issue while fetching an event from the chain."
-                        " Will not shot down geonius and will be trying again later."
+                        " Will not shot down geoscope and will be trying again later."
                         " However, it might be worth checking what is wrong.",
                         dont_notify_devs=True,
                     )
@@ -211,18 +211,13 @@ class Daemon:
                         " Continuing without an assistance."
                     )
 
-                except EmailError:
-                    get_logger().warning(
-                        f"Can be not able to communicate with the owners."
-                        " Continuing without an assistance."
-                    )
                 self.start_flag.clear()
                 self.stop_flag.set()
 
             except Exception:
                 # All of the remaining Exceptions will force the MainThread to exit.>
                 get_logger().exception(
-                    f"Stopping Geonius due to unhandled exception on a Daemon for:"
+                    f"Stopping geoscope due to unhandled exception on a Daemon for:"
                     f"{self.trigger.name:^20}"
                 )
                 try:
@@ -231,7 +226,7 @@ class Daemon:
                         f"All Daemons stopped, script exited. Come take a look!",
                     )
                 except EmailError:
-                    get_logger().warning(f"Could not send email while exiting Geonius. Well...")
+                    get_logger().warning(f"Could not send email while exiting geoscope. Well...")
 
                 os.kill(os.getpid(), signal.SIGUSR1)
 
@@ -242,7 +237,7 @@ class Daemon:
             DaemonError: Raised if the daemon is already running.
         """
         if self.start_flag.is_set():
-            get_logger().error("Stopping Geonius")
+            get_logger().error("Stopping Geoscope")
             raise DaemonError("Daemon is already running.")
         self.stop_flag.clear()
 
@@ -262,7 +257,7 @@ class Daemon:
 
         # if already stopped
         if not self.start_flag.is_set() or self.stop_flag.is_set():
-            get_logger().error("Stopping Geonius")
+            get_logger().error("Stopping Geoscope")
             raise DaemonError("Daemon is already stopped.")
 
         self.stop_flag.set()

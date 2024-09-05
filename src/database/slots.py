@@ -1,0 +1,85 @@
+# -*- coding: utf-8 -*-
+
+from src.classes import Database
+from src.exceptions.classes.database import DatabaseError
+from src.globals import get_logger
+from src.helpers.slots import fetch_slots_batch
+
+
+def create_slots_table() -> None:
+    """Creates the sql database table to store the Slots info.
+
+    Raises:
+        DatabaseError: Error creating Slots table
+    """
+
+    try:
+        with Database() as db:
+            db.execute(
+                """
+                CREATE TABLE IF NOT EXISTS Slots (
+                    slot INTEGER NOT NULL PRIMARY KEY,
+                    block_number INTEGER UNIQUE,
+                    proposer_index INTEGER,
+                    fee_recipient TEXT
+                )
+                """
+            )
+        get_logger().debug(f"Created a new table: Slots")
+    except Exception as e:
+        raise DatabaseError("Error creating Slots table") from e
+
+
+def drop_slots_table() -> None:
+    """Removes Slots table from the database.
+
+    Raises:
+        DatabaseError: Error dropping Slots table
+    """
+
+    try:
+        with Database() as db:
+            db.execute("""DROP TABLE IF EXISTS Slots""")
+        get_logger().debug(f"Dropped Table: Slots")
+    except Exception as e:
+        raise DatabaseError(f"Error dropping Slots table") from e
+
+
+def reinitialize_slots_table() -> None:
+    """Removes Slots table and creates an empty one."""
+
+    create_slots_table()
+    drop_slots_table()
+
+
+def insert_many_slots(gathered_slots: list[dict]) -> None:
+    """Inserts the gathered data for the given slots into the database.
+
+    Args:
+        gathered_slots (list[dict]): list of dictionaries containing the filtered info about gathered slots
+
+    Raises:
+        DatabaseError: Error inserting many slots into table
+    """
+
+    try:
+        with Database() as db:
+            db.executemany(
+                "INSERT INTO Slots VALUES (?,?,?,?,?,?)",
+                [
+                    (a["slot"], a["block_number"], a["proposer_index"], a["fee_recipient"])
+                    for a in gathered_slots
+                ],
+            )
+    except Exception as e:
+        raise DatabaseError(f"Error inserting many slots into table Slots") from e
+
+
+def get_max_slot(fallback_slot: int = 0) -> int:
+    """Returns the maximum slot number available on the Slots table"""
+    try:
+        with Database() as db:
+            db.execute("SELECT COALESCE(MAX(slot), ?) FROM Slots", (fallback_slot,))
+            return db.fetchone()[0]
+    except Exception as e:
+        raise DatabaseError(f"Error getting the max slot number from table Slots") from e

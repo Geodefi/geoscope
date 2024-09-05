@@ -1,0 +1,97 @@
+# -*- coding: utf-8 -*-
+
+from src.utils.thread import multithread
+from src.utils.list import flatten
+from src.database.validators import check_pubkey, update_beacon_values
+from src.database.deposits import check_deposit_by_slot
+from src.helpers.beacon import fetch_validators_batch
+
+
+# TODO: (later) both of these filter_deposits and filter_withdrawals methods look very same, Can be generalized.
+def filter_deposits(slot: int, deposits: list[dict]) -> list:
+    """Filters deposits within a single slot:
+        - pubkeys that are created by Portal
+        - events that does not exist on the database
+    Deposits are randomly processed.
+
+    Args:
+        slot (int): points to a slot that the deposits list is gathered from
+        deposits (dict): deposits list to be filtered
+
+    Returns:
+        list: filtered list of deposits for given slot
+    """
+    filtered = []
+    # filter slots that have no deposits
+    if deposits:
+        # filter slots that have been saved to db, assumed to be processed
+        if check_deposit_by_slot(slot):
+            for d in deposits:
+                # check if pk is available on Portal
+                if check_pubkey(d["pubkey"]):
+                    d["slot"] = slot
+                    filtered.append(d)
+
+    return filtered
+
+
+def filter_deposits_batch(slots: list[dict]) -> list[dict]:
+    """Checks if the given pubkey for the deposit exists in the Validators database,
+        for multiple slots worth of deposit data
+    Meaning it is created through Portal.
+    Does not matter if the deposit is valid or not, it will show up.
+
+    Args:
+        slots (list[dict]): gathered info about the slots.
+
+    Returns:
+        list[dict]: filtered deposits that belong to geodefi validators.
+    """
+    # filter slots that have no deposits, turn into a dict that maps slots to deposit_data
+
+    deposits_by_slots: dict = {s["slot"]: [d["data"] for d in s["deposits"]] for s in slots}
+
+    filtered_deposits = multithread(
+        filter_deposits, deposits_by_slots.keys(), deposits_by_slots.values()
+    )
+
+    return flatten(filtered_deposits)
+
+
+def process_many_deposits(slot: int, deposits: list[dict]) -> None:
+    """When a deposit is encontered, we ensured that the pubkey is reachable on the beaconchain.
+    So, we will update the Validators db for:
+        - beacon_index
+        - beacon_status
+        - withdrawal_credentials
+        - exit_epoch
+        - beacon_balance
+
+
+    Args:
+        slot (int): slot to process deposits from
+        deposits (list[dict]): list of deposits to process
+    """
+    pubkeys: list = [d["pubkey"] for d in deposits]
+    len_pks: int = len(pubkeys)
+
+    # TODO: beacon_step to config here, ankr supports up to: 1000 btw
+    beacon_step = 100
+    validators = []
+    for i in range(0, len_pks, beacon_step):
+        batch: list = fetch_validators_batch(slot, pubkeys[i : i + beacon_step])
+        validators.extend(batch)
+
+    # Now that we have validators data, update the db:
+    parsed_validators: list[dict] = [
+        {
+            "beacon_index": v["index"],
+            "beacon_status": v["status"],
+            "withdrawal_credentials": v["validator"]["withdrawal_credentials"],
+            "exit_epoch": v["validator"]["exit_epoch"],
+            "beacon_balance": v["balance"],
+            "pubkey": v["validator"]["pubkey"],
+        }
+        for v in validators
+    ]
+    update_beacon_values(parsed_validators)

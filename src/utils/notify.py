@@ -19,16 +19,15 @@ def send_email(
     as well as admin when allowed and applicable.
 
     Args:
-        subject (_type_): The header for the mail
-        body (_type_): Contents of th mail
+        subject (str): The header for the mail
+        body (str): Contents of th mail
         attachments (list[tuple[str, str]], optional): Defaults to None, in which case
         the log file will be provided as an attachment.
         attachments (list[tuple[str, str]], optional): Defaults to None, in which case
         will rely on --dont-notify-devs flag, to inform geodefi developers on crashes.
 
     Raises:
-        e: _description_
-        e: _description_
+        e: TODO
     """
     config: AttributeDict = get_config()
 
@@ -41,7 +40,7 @@ def send_email(
     msg: MIMEMultipart = MIMEMultipart()
     msg["From"] = config.email.sender
     msg["To"] = ",".join(config.email.receivers)
-    msg["Subject"] = f"[🧠 Geonius]: {subject}"
+    msg["Subject"] = f"[🧠 Geoscope]: {subject}"
     if not dont_notify_devs:
         body += (
             "\n\nGeodefi team is also notified of this error. "
