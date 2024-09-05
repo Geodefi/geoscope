@@ -2,8 +2,8 @@ name: Build and publish python 🐍 package 📦 to PyPI
 
 on:
   push:
-    tags:
-      - "v[0-9]+.[0-9]+.[0-9]+"
+    branches:
+      - main
 
 jobs:
   build-and-publish-to-pypi:
@@ -31,6 +31,5 @@ jobs:
       #   poetry config pypi-token.pypi ${{ secrets.PYPI_TOKEN }}
       - name: Publish to PyPI
         run: |
-          poetry version $(echo ${{ github.ref_name }} | cut -d v -f 2)
           poetry publish --build -r test-pypi
         #  poetry publish --build

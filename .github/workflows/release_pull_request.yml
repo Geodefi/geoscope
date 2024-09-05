@@ -13,9 +13,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4.1.7
+        uses: actions/checkout@v4
         with:
           persist-credentials: false
+          ref: dev
 
       - name: Update version
         id: version-update
@@ -29,7 +30,7 @@ jobs:
           create-summary: true
           skip-ci: false
           skip-on-empty: false
-          output-file: false
+          output-file: true
           git-push: false
 
       - name: missing version output
@@ -37,11 +38,13 @@ jobs:
         run: >
           echo "ERROR: Version output is missing from the previous step!" && exit 1
 
-      - name: Create Pull Request
+      - name: Create Pull Request on dev
         uses: peter-evans/create-pull-request@v6.1.0
-        if: ${{ steps.version-update.outputs.version }}
+        id: cpr-dev
         with:
-          token: ${{ secrets.PAT }}
-          branch: pre-release-${{ steps.version-update.outputs.version }}
-          title: "chore(release): ${{ steps.version-update.outputs.version }}"
-          body: "This is an automatic PR created by github actions.\nClose and delete branch in case it is not needed."
+          token: ${{ secrets.GITHUB_TOKEN }}
+          branch: release-${{ steps.version-update.outputs.version }}
+          title: "chore: update version to ${{ steps.version-update.outputs.version }} on dev"
+          body: ">To keep the version on dev branch up-to-date, this PR should be merged before merging dev into the main branch in the following PR. Which will trigger pypi release with the updated version.\n\nThis is an automatic PR created by github actions.\nClose and delete branch in case it is not needed."
+          assignees: geode-main
+          reviewers: geode-main
