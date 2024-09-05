@@ -196,3 +196,6 @@ linter.txt
 #   git rm -r .ipynb_checkpoints/
 
 # End of https://www.toptal.com/developers/gitignore/api/jupyternotebooks
+
+.secrets
+trash/

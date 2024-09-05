@@ -10,7 +10,7 @@ packages = [
 
 [tool.poetry.dependencies]
 python = ">=3.8,<=3.12"
-geodefi = "3.0.5"
+geodefi = "^3.2.0"
 python-dotenv = "^1.0.1"
 click = "^8.1.7"
 
@@ -23,7 +23,6 @@ pyinstaller = "^6.9.0"
 
 [tool.poetry.scripts]
 geoscope = "src.main:cli"
-
 
 [build-system]
 requires = ["poetry-core"]

@@ -1,9 +1,12 @@
 {
   "chains": {
     "holesky": {
-      "start": 1550551,
-      "identifier": "latest",
-      "period": "5",
+      "start": {
+        "block": 1550551,
+        "slot": 1657883
+      },
+      "identifier": "finalized",
+      "period": "10",
       "interval": "12",
       "range": "3000",
       "execution_api": "https://rpc.ankr.com/eth_holesky/<API_KEY_EXECUTION>",
@@ -37,9 +40,10 @@
     }
   },
   "email": {
-    "sender": "akif.gultekin99@gmail.com",
+    "sender": "admin@geode.fi",
     "receivers": ["admin@geode.fi", "admin@geode.fi", "admin@geode.fi"],
     "smtp_server": "smtp.gmail.com",
     "smtp_port": 587
-  }
+  },
+  "watchers": ["0x421512521421.geode.fi"]
 }
