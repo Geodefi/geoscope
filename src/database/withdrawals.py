@@ -58,13 +58,13 @@ def insert_many_withdrawals(withdrawals: list[dict]) -> None:
         withdrawals (list[dict]):
 
     Raises:
-        DatabaseError: Error inserting many slots into table
+        DatabaseError: Error inserting many withdrawals into table
     """
 
     try:
         with Database() as db:
             db.executemany(
-                "INSERT INTO Slots VALUES (?,?,?,?,?)",
+                "INSERT INTO Withdrawals VALUES (?,?,?,?,?)",
                 [
                     (
                         a["index"],
@@ -77,7 +77,7 @@ def insert_many_withdrawals(withdrawals: list[dict]) -> None:
                 ],
             )
     except Exception as e:
-        raise DatabaseError(f"Error inserting many slots into table Slots") from e
+        raise DatabaseError(f"Error inserting many withdrawals into table Withdrawals") from e
 
 
 def check_withdrawal_by_slot(slot: int):

@@ -47,7 +47,7 @@ class BeaconTrigger(Trigger):
         db_slot_num: int = get_max_slot(fallback_slot)
 
         slot_process_steps: int = 10000
-        for i in range(db_slot_num, curr_slot_num, slot_process_steps):
+        for i in range(db_slot_num, curr_slot_num + 1, slot_process_steps):
             # Processing slots in batches, we can not just try to do it at once!
             last_slot_num: int = min(i + slot_process_steps, curr_slot_num)
             # So, since we are getting the latest processed slot here, we should actually **SAVE** it at the

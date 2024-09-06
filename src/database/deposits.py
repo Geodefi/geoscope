@@ -57,12 +57,12 @@ def insert_many_deposits(deposits: list[dict]) -> None:
         deposits (list[dict]):
 
     Raises:
-        DatabaseError: Error inserting many slots into table
+        DatabaseError: Error inserting many deposits into table
     """
     try:
         with Database() as db:
             db.executemany(
-                "INSERT INTO Slots VALUES (?,?,?,?,?)",
+                "INSERT INTO Deposits VALUES (?,?,?,?,?)",
                 [
                     (
                         a["pubkey"],
@@ -75,7 +75,7 @@ def insert_many_deposits(deposits: list[dict]) -> None:
                 ],
             )
     except Exception as e:
-        raise DatabaseError(f"Error inserting many slots into table Slots") from e
+        raise DatabaseError(f"Error inserting many deposits into table Deposits") from e
 
 
 def check_deposit_by_slot(slot: int):

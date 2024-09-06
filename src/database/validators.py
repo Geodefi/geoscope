@@ -153,11 +153,11 @@ def update_beacon_values(validators: list[dict]) -> None:
         raise DatabaseError(f"Error updating beaconchain related data on table Validators") from e
 
 
-def increase_withdrawn_balances(withdrawn_balances: list[dict]):
+def increase_withdrawn_balances(withdrawn_balances: dict):
     """_summary_
 
     Args:
-        withdrawn_balances (list[dict]): list of dictionaries: {"validator_index": int, "amount": int}
+        withdrawn_balances (dict): validator indices mapped to withdrawn amount to be processed, {validator_index: amount}
 
     Raises:
         DatabaseError: Error updating beacon balances of validators

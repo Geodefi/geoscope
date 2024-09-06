@@ -51,8 +51,7 @@ class SlotDaemon(Daemon):
             int: the latest processed slot number.
         """
         try:
-            # this should be get_sdk().beacon.beacon_blocks for api v2 but does not work for some reason
-            curr_slot: dict = get_sdk().beacon.beacon_blocks_id(self.slot_identifier)
+            curr_slot: dict = get_sdk().beacon.beacon_blocks(self.slot_identifier)
             curr_slot_msg: dict = curr_slot["message"]
             curr_slot_num: int = int(curr_slot_msg["slot"])
             get_logger().debug(f"Slot detected: {curr_slot_num}")

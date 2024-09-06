@@ -68,7 +68,7 @@ def process_many_withdrawals(withdrawals: list[dict]):
     # results in dict of {'validator_index': amount,...}
     # which is the expected form for the increase_withdrawn_balances
 
-    indexed_sums = reduce(
+    indexed_sums: dict = reduce(
         lambda accumulator, withdrawal: (
             accumulator.update(
                 {
