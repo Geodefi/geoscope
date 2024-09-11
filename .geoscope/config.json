@@ -11,6 +11,9 @@
       "range": "3000",
       "execution_api": "https://rpc.ankr.com/eth_holesky/<API_KEY_EXECUTION>",
       "consensus_api": "https://rpc.ankr.com/premium-http/eth_holesky_beacon/<API_KEY_CONSENSUS>"
+    },
+    "beacon": {
+      "beacon_step": 100
     }
   },
   "network": {

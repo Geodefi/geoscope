@@ -5,6 +5,7 @@ from src.utils.list import flatten
 from src.database.validators import check_pubkey, update_beacon_values
 from src.database.deposits import check_deposit_by_slot
 from src.helpers.beacon import fetch_validators_batch
+from src.globals import get_config
 
 
 # TODO: (later) both of these filter_deposits and filter_withdrawals methods look very same, Can be generalized.
@@ -75,8 +76,7 @@ def process_many_deposits(slot: int, deposits: list[dict]) -> None:
     pubkeys: list = [d["pubkey"] for d in deposits]
     len_pks: int = len(pubkeys)
 
-    # TODO: beacon_step to config here, ankr supports up to: 1000 btw
-    beacon_step = 100
+    beacon_step = get_config().chains.beacon.beacon_step
     validators = []
     for i in range(0, len_pks, beacon_step):
         batch: list = fetch_validators_batch(slot, pubkeys[i : i + beacon_step])

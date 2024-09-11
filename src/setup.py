@@ -54,6 +54,13 @@ def preflight_checks(test_email: bool = False):
     # Fields
     # TODO: (later) chain related checks should be implemented...
     # chain: AttributeDict = config.chains[config.chain_name] #
+    chains: AttributeDict = config.chains
+    if not "beacon" in chains:
+        raise MissingConfigurationError("'chains' section is missing the 'beacon' field.")
+
+    beacon: AttributeDict = chains.beacon
+    if not "beacon_step" in beacon:
+        raise MissingConfigurationError("'beacon' section is missing the 'beacon_step' field.")
 
     network: AttributeDict = config.network
     if not "refresh_rate" in network:
