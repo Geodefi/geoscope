@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 
+from multiproof import StandardMerkleTree
+
 from src.classes import Trigger
 from src.globals import get_constants
 from src.helpers.slots import fetch_slots_batch
@@ -77,6 +79,8 @@ class BeaconTrigger(Trigger):
         # TODO: calculate prices and check how much it changed (it its more then 1% any price, can check from chain)
         # or if last updatetimestamp from stakeparams is more then 24 hours it will be updated for sure
         # TODO: calculate merkle roots (price and balances) if it is needed to calculated
+
+        # tree = StandardMerkleTree.of([[1, 1], [2, 2]], ["uint256", "uint256"])
 
         # TODO: send tx to multisig to update chain
 

@@ -9,10 +9,11 @@ packages = [
 ]
 
 [tool.poetry.dependencies]
-python = ">=3.8,<=3.12"
+python = ">=3.10,<=3.12"
 geodefi = "^3.2.0"
 python-dotenv = "^1.0.1"
 click = "^8.1.7"
+multiproof = "^0.1.9"
 
 [tool.poetry.group.dev.dependencies]
 pylint = "==3.0.3"
