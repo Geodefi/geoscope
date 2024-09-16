@@ -17,7 +17,7 @@ def fetch_validator(pubkey: str) -> dict:
     Returns:
         dict: dictionary containing the gathered validator info
     """
-    # TODO: delete this.
+
     # Although all of the required data for the validators should be available,
     # the following ones might not yet since the deposit can be still not yet processed.
     # So, instead of not processing them, we will create the indexes

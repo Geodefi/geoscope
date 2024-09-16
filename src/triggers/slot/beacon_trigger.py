@@ -74,5 +74,14 @@ class BeaconTrigger(Trigger):
 
             insert_many_slots(gathered_slots)
 
+        # TODO: calculate prices and check how much it changed (it its more then 1% any price, can check from chain)
+        # or if last updatetimestamp from stakeparams is more then 24 hours it will be updated for sure
+        # TODO: calculate merkle roots (price and balances) if it is needed to calculated
+
+        # TODO: send tx to multisig to update chain
+
+        # TODO: send post request to backend to update the chain
+        # if state is active and balance less than 16, it is a problem, raise error and exit
+
         # Now we can see if we need to do any actions here!
         # What a rush, huh.

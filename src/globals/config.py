@@ -23,6 +23,8 @@ def apply_flags(
     """
     # TODO: these should be implemented according to the config.json
     # DONE! but need to check when fixing the commands neverthless. So todo stays.
+
+    # TODO: add abi_directory.foldername and abi_directory.files.gnosis to the config.json for gnosis
     config.dir = flags.main_dir
     config.chain_name = flags.chain
     if "chain_start" in flags:

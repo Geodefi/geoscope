@@ -8,7 +8,6 @@ from src.helpers.beacon import fetch_validators_batch
 from src.globals import get_config
 
 
-# TODO: (later) both of these filter_deposits and filter_withdrawals methods look very same, Can be generalized.
 def filter_deposits(slot: int, deposits: list[dict]) -> list:
     """Filters deposits within a single slot:
         - pubkeys that are created by Portal
