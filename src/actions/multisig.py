@@ -17,6 +17,13 @@ from src.exceptions import ContractCreationError
 
 
 def get_caller_data():
+    """
+    Gets the caller's private key, address, and nonce.
+
+    Returns:
+        Tuple[str, str, int]: A tuple containing the private key, address, and nonce.
+    """
+
     private_key = os.getenv("GEOSCOPE_PRIVATE_KEY")
     if private_key is None:
         raise Exception("GEOSCOPE_PRIVATE_KEY is not set.")
@@ -35,6 +42,13 @@ def get_caller_data():
 
 
 def get_gnosis() -> Contract:
+    """
+    Gets the Gnosis Safe contract instance.
+
+    Returns:
+        Contract: The Gnosis Safe contract instance.
+    """
+
     gnosis_abi_path = os.path.join(
         get_config().abi_directory.folder_name,
         get_config().abi_directory.files.gnosis,
@@ -66,7 +80,13 @@ def get_gnosis() -> Contract:
 
 def get_nonce(gnosis_contract: Contract) -> int:
     """
-    :returns nonce: the nonce value of safe-contract
+    Gets the nonce for the Gnosis Safe contract.
+
+    Args:
+        gnosis_contract (Contract): The Gnosis Safe contract instance.
+
+    Returns:
+        int: The nonce for the Gnosis Safe contract.
     """
     return int(gnosis_contract.functions.nonce().call())
 
@@ -75,11 +95,16 @@ def get_transaction_hash(
     gnosis_contract: Contract, to: ChecksumAddress, data: HexBytes, nonce: int
 ) -> HexBytes:
     """
-    :param to: address of target contract (portal)
-    :param data: hex-encoded input data
-    :param nonce: the nonce value of safe-contract
+    Gets the transaction hash for a Gnosis Safe transaction.
 
-    :returns: hex-encoded transaction hash
+    Args:
+        gnosis_contract (Contract): The Gnosis Safe contract instance.
+        to (ChecksumAddress): The address of the target contract.
+        data (HexBytes): The encoded data for the transaction.
+        nonce (int): The nonce for the transaction.
+
+    Returns:
+        HexBytes: The transaction hash.
     """
 
     return get_sdk().w3.to_hex(
@@ -100,8 +125,14 @@ def get_transaction_hash(
 
 def sign(tx_hash: HexBytes, private_key: HexBytes) -> HexBytes:
     """
-    :param tx_hash: hex-encoded safe transaction to sign
-    :param private_key: hex-encoded private key
+    Signs a transaction hash with the provided private key.
+
+    Args:
+        tx_hash (HexBytes): The transaction hash to sign.
+        private_key (HexBytes): The private key to sign with.
+
+    Returns:
+        str: The hex-encoded signature.
     """
     contract_transaction_hash = HexBytes(tx_hash)
     account = get_sdk().w3.eth.account.from_key(private_key)
@@ -123,9 +154,19 @@ def exec_transaction(
     caller_nonce: int,
 ):
     """
-    :param to: address of target contract (portal)
-    :param data: hex-encoded input data
-    :param signatures: the results of sign by each owner concatted.
+    Executes a transaction on the Gnosis Safe.
+
+    Args:
+        gnosis_contract (Contract): The Gnosis Safe contract instance.
+        to (ChecksumAddress): The address of the target contract.
+        data (HexBytes): The encoded data for the transaction.
+        signatures (str): The signatures for the transaction.
+        caller_private_key (str): The private key of the caller.
+        caller_address (str): The address of the caller.
+        caller_nonce (int): The nonce of the caller.
+
+    Returns:
+        Tuple[int, Any]: A tuple containing the success status and the transaction receipt.
     """
     tx = gnosis_contract.functions.execTransaction(
         to,
@@ -162,10 +203,16 @@ def send_tx(
     param_args: List[Any],
 ):
     """
-    :param contract_address: The address of target contract. (Not Safe contract)
-    :param PLANET_ID: The registered Planet ID
-    :param OPERATOR_ID: The list of target opearators.
-    :param balanceIncrease: The list of how much avax has been gained by staking per operator.
+    Sends a transaction to the Gnosis Safe contract.
+
+    Args:
+        contract_address (ChecksumAddress): The address of the target contract.
+        method_id (str): The method ID of the target function.
+        param_types (List[str]): The types of the arguments for the function.
+        param_args (List[Any]): The arguments for the function.
+
+    Returns:
+        Tuple[int, Any]: A tuple containing the success status and the transaction receipt.
     """
 
     assert len(param_types) == len(param_args), "The types and args must have same length."

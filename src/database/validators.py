@@ -240,3 +240,17 @@ def check_beacon_index(idx: int) -> bool:
             return db.fetchone() is not None
     except Exception as e:
         raise DatabaseError(f"Error checking if index {idx} is in table Validators") from e
+
+
+def fetch_validator_balances() -> list[dict]:
+    """Fetches the pubkey and validator balances (beacon and withdrawn) from the database.
+
+    Returns:
+        list[dict]: List of validators
+    """
+    try:
+        with Database() as db:
+            db.execute("SELECT pubkey, beacon_balance, withdrawn_balance FROM Validators")
+            return db.fetchall()
+    except Exception as e:
+        raise DatabaseError(f"Error fetching validators from table Validators") from e
