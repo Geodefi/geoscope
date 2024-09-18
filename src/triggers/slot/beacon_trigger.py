@@ -1,18 +1,21 @@
 # -*- coding: utf-8 -*-
 
-from multiproof import StandardMerkleTree
-from web3.exceptions import ContractLogicError
 
 from src.classes import Trigger
-from src.globals import get_constants, get_logger
+from src.globals import get_constants
 from src.helpers.slots import fetch_slots_batch
 from src.helpers.withdrawals import filter_withdrawals_batch, process_many_withdrawals
 from src.helpers.deposits import filter_deposits_batch, process_many_deposits
-from src.database.slots import insert_many_slots, get_max_slot
+from src.database.slots import insert_many_slots, get_max_slot, fetch_block_number
 from src.database.deposits import insert_many_deposits
 from src.database.withdrawals import insert_many_withdrawals
-from src.database.validators import update_portal_validators, fetch_validator_balances
-from src.actions.multisig import send_tx
+from src.database.validators import update_portal_validators
+from src.helpers.merkle import (
+    should_update_merkle,
+    build_balances_data,
+    prepare_report,
+    report_beacon,
+)
 
 
 class BeaconTrigger(Trigger):
@@ -50,7 +53,7 @@ class BeaconTrigger(Trigger):
         fallback_slot: int = int(get_constants().chain.start.slot)
         db_slot_num: int = get_max_slot(fallback_slot)
 
-        slot_process_steps: int = 10000
+        slot_process_steps: int = 10000  # TODO: config.json this
         for i in range(db_slot_num, curr_slot_num + 1, slot_process_steps):
             # Processing slots in batches, we can not just try to do it at once!
             last_slot_num: int = min(i + slot_process_steps, curr_slot_num)
@@ -78,68 +81,15 @@ class BeaconTrigger(Trigger):
 
             insert_many_slots(gathered_slots)
 
-        # TODO: calculate prices and check how much it changed (it its more then 1% any price, can check from chain)
-        # or if last updatetimestamp from stakeparams is more then 24 hours it will be updated for sure
+        block_number = fetch_block_number()
+        self.process_report_beacon(block_number)
 
-        # ----- pool price related calculations -----
-        pool_prices: dict = {}  # {pool_id: price}
-
-        ids = pool_prices.keys()
-        prices = pool_prices.values()
-        price_merkle_tree = StandardMerkleTree.of([ids, prices], ["uint256", "uint256"])
-        price_merkle_root = price_merkle_tree.root
-
-        # ----- validator balances related calculations -----
-
-        # validator_balances = [(pubkey, beacon_balance, withdrawn_balance), ...]
-        validator_balances = fetch_validator_balances()
-
-        # convert to lists
-        pubkeys, beacon_balances, withdrawn_balances = map(list, zip(*validator_balances))
-
-        # create merkle tree for validator balances
-        balance_merkle_tree = StandardMerkleTree.of(
-            [pubkeys, beacon_balances, withdrawn_balances], ["bytes", "uint256", "uint256"]
-        )
-
-        balance_merkle_root = balance_merkle_tree.root
-
-        # ----- all validators on chain related calculations -----
-
-        # TODO: get the count of all validators on chain
-        all_val_count = 50_000  # we can fetch if from oklink, but need to discuss this
-        if all_val_count < 50_000:
-            all_val_count = 50_000  # minimum count for the merkle tree
-
-        # ----- send tx to multisig to update chain -----
-        try:
-            success, tx_receipt = send_tx(
-                contract_address="0xcA69bA533810ee94b7649c57eF8aB22EBbE0bbf7",  # Portal contract address
-                method_id="0xdf1ff929",  # reportBeacon function signature
-                param_types=["bytes32", "bytes32", "uint256"],
-                param_args=[price_merkle_root, balance_merkle_root, all_val_count],
+    def process_report_beacon(self, block_number: int):
+        # TODO: this should take block number of the curr_slot_num
+        should_update, prices = should_update_merkle("haha")
+        if should_update:
+            balances: dict = build_balances_data
+            price_merkle_root, balance_merkle_root, all_validators_count = prepare_report(
+                prices, balances
             )
-
-            if success:
-                get_logger().info(
-                    f"Successfully sent transaction: {dict(tx_receipt)['transactionHash'].hex()}"
-                )
-            else:
-                # TODO: decide how to handle error
-                get_logger().error(
-                    f"Failed to send transaction (reverted): {dict(tx_receipt)['transactionHash'].hex()}"
-                )
-        except ContractLogicError as e:
-            # TODO: decide how to handle exception
-            get_logger().error(f"Contract logic error: {str(e)}")
-        except Exception as e:
-            # TODO: decide how to handle exception
-            get_logger().error(f"Error sending transaction: {str(e)}")
-
-        # TODO: send post request to backend to update the chain
-        # if state is active and balance less than 16, it is a problem, raise error and exit
-
-        # ----- update backend -----
-
-        # Now we can see if we need to do any actions here!
-        # What a rush, huh.
+            report_beacon(price_merkle_root, balance_merkle_root, all_validators_count)

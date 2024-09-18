@@ -24,6 +24,7 @@ def fetch_slot(slot_number: int) -> dict:
             "proposer_index": slot_message["proposer_index"],
             "block_number": slot_message["body"]["execution_payload"]["block_number"],
             "fee_recipient": slot_message["body"]["execution_payload"]["fee_recipient"],
+            "fee_sum": 0,
             "deposits": slot_message["body"]["deposits"],
             "withdrawals": slot_message["body"]["execution_payload"]["withdrawals"],
         }
@@ -35,6 +36,7 @@ def fetch_slot(slot_number: int) -> dict:
             "proposer_index": None,
             "block_number": None,
             "fee_recipient": None,
+            "fee_sum": 0,
             "deposits": [],
             "withdrawals": [],
         }

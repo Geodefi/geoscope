@@ -21,7 +21,8 @@ def create_slots_table() -> None:
                     slot INTEGER NOT NULL PRIMARY KEY,
                     block_number INTEGER UNIQUE,
                     proposer_index INTEGER,
-                    fee_recipient TEXT
+                    fee_recipient TEXT,
+                    fee_sum INTEGER
                 )
                 """
             )
@@ -65,9 +66,15 @@ def insert_many_slots(gathered_slots: list[dict]) -> None:
     try:
         with Database() as db:
             db.executemany(
-                "INSERT INTO Slots VALUES (?,?,?,?,?,?)",
+                "INSERT INTO Slots VALUES (?,?,?,?,?)",
                 [
-                    (a["slot"], a["block_number"], a["proposer_index"], a["fee_recipient"])
+                    (
+                        a["slot"],
+                        a["block_number"],
+                        a["proposer_index"],
+                        a["fee_recipient"],
+                        a["fee_sum"],
+                    )
                     for a in gathered_slots
                 ],
             )
@@ -83,3 +90,17 @@ def get_max_slot(fallback_slot: int = 0) -> int:
             return db.fetchone()[0]
     except Exception as e:
         raise DatabaseError(f"Error getting the max slot number from table Slots") from e
+
+
+def fetch_block_number(slot: int = 0) -> int:
+    """Fetches the block number of given slot from the database.
+
+    Returns:
+        int: block number of given slot
+    """
+    try:
+        with Database() as db:
+            db.execute("SELECT block_number FROM Slots WHERE slot = ?", (slot,))
+            return db.fetchone()[0]
+    except Exception as e:
+        raise DatabaseError(f"Error fetching block_number from table Slots") from e
