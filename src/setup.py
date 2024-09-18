@@ -50,10 +50,6 @@ def preflight_checks(test_email: bool = False):
         raise MissingConfigurationError("'database' section on config.json is missing or empty.")
     if not "watchers" in config:
         raise MissingConfigurationError("'ethdo' section on config.json is missing or empty.")
-    if not "abi_directory" in config:
-        raise MissingConfigurationError(
-            "'abi_directory' section on config.json is missing or empty."
-        )
 
     # Fields
     # TODO: (later) chain related checks should be implemented...
@@ -104,20 +100,6 @@ def preflight_checks(test_email: bool = False):
     database: AttributeDict = config.database
     if not "dir" in database:
         raise MissingConfigurationError("'database' section is missing the 'dir' field.")
-
-    abi_directory: AttributeDict = config.abi_directory
-    if not "foldername" in abi_directory:
-        raise MissingConfigurationError(
-            "'abi_directory' section is missing the 'foldername' field."
-        )
-    if not "files" in abi_directory:
-        raise MissingConfigurationError("'abi_directory' section is missing the 'files' field.")
-
-    files: AttributeDict = abi_directory.files
-    if not "gnosis" in files:
-        raise MissingConfigurationError(
-            "'abi_directory.files' section is missing the 'gnosis' field."
-        )
 
     if "gas" in config:
         gas: AttributeDict = config.gas
