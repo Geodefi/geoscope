@@ -24,7 +24,7 @@ def filter_withdrawals(slot: int, withdrawals: list[dict]) -> list:
     # filter slots that have no withdrawals
     if withdrawals:
         # filter slots that have been saved to db, assumed to be processed
-        if check_withdrawal_by_slot(slot):
+        if not check_withdrawal_by_slot(slot):
             for w in withdrawals:
                 # check if pk is available on Portal
                 if check_beacon_index(w["validator_index"]):
