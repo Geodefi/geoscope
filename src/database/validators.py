@@ -3,8 +3,8 @@
 from src.classes import Database
 from src.exceptions import DatabaseError
 from src.globals import get_logger
-from src.helpers.portal import fetch_proposed_pubkeys
-from src.helpers.validators import fetch_validators_batch
+from src.helpers.portal import get_proposed_pubkeys
+from src.helpers.portal import get_validators_batch
 
 
 def create_validators_table() -> None:
@@ -111,11 +111,11 @@ def fill_validators_table(pks: list[str]) -> None:
     Args:
         pks (list[str]): pubkeys that will be fetched and inserted
     """
-    insert_many_validators(fetch_validators_batch(pks))
+    insert_many_validators(get_validators_batch(pks))
 
 
 def update_portal_validators(first_block, last_block) -> None:
-    pks: list[str] = fetch_proposed_pubkeys(first_block, last_block)
+    pks: list[str] = get_proposed_pubkeys(first_block, last_block)
     fill_validators_table(pks)
 
 

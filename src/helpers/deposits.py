@@ -25,7 +25,7 @@ def filter_deposits(slot: int, deposits: list[dict]) -> list:
     # filter slots that have no deposits
     if deposits:
         # filter slots that have been saved to db, assumed to be processed
-        if check_deposit_by_slot(slot):
+        if not check_deposit_by_slot(slot):
             for d in deposits:
                 # check if pk is available on Portal
                 if check_pubkey(d["pubkey"]):
