@@ -81,7 +81,7 @@ class BeaconTrigger(Trigger):
 
             insert_many_slots(gathered_slots)
 
-        block_number = fetch_block_number()
+        block_number = fetch_block_number(curr_slot_num)
         self.process_report_beacon(block_number)
 
     def process_report_beacon(self, block_number: int):

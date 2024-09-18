@@ -92,7 +92,7 @@ def get_max_slot(fallback_slot: int = 0) -> int:
         raise DatabaseError(f"Error getting the max slot number from table Slots") from e
 
 
-def fetch_block_number(slot: int = 0) -> int:
+def fetch_block_number(slot: int) -> int:
     """Fetches the block number of given slot from the database.
 
     Returns:
