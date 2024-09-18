@@ -17,7 +17,7 @@ def fetch_validators_batch(slot: int, validators: list) -> tuple:
             and will return the related [data].
     """
     # TODO: this method improves sdk.beacon.beacon_states_validators, thus beacon_states_validators should be improved in the next version of sdk.
-    # there is a http 429 error that happens frequently when given slot is too old...
+    # there is a http 429 or 502 error that happens frequently when given slot is too old...
     # And tbh it is not safe to assume latest/finalized (newer) slots will be processed here (especially with the batches)
     # This is because, we might be processing an unkown deposit twice!
     url = get_sdk().beacon.api_base + f"/eth/v1/beacon/states/{slot}/validators/?"

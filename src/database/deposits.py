@@ -78,12 +78,15 @@ def insert_many_deposits(deposits: list[dict]) -> None:
         raise DatabaseError(f"Error inserting many deposits into table Deposits") from e
 
 
-def check_deposit_by_slot(slot: int):
+def check_deposit_by_slot(slot: int) -> bool:
     """Checks if there are any deposits saved on the database for given slot.
     It effectively proves all deposits are processed and saved within the slot.
 
     Args:
         slot (int): slot to be checked for availabity
+
+    Returns:
+        bool: True if exists
     """
     try:
         with Database() as db:
