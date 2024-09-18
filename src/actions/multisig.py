@@ -50,12 +50,12 @@ def get_gnosis() -> Contract:
     """
 
     gnosis_abi_path = os.path.join(
-        get_config().abi_directory.folder_name,
-        get_config().abi_directory.files.gnosis,
+        "assets",
+        "gnosis.json",
     )
 
     # Get ABI
-    with open(gnosis_abi_path, "r") as file:
+    with open(gnosis_abi_path, "r", encoding="utf8") as file:
         a = file.read()
     abi = json.loads(a)
 
