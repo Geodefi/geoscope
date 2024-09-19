@@ -20,7 +20,7 @@ def create_pools_table() -> None:
                     name TEXT NOT NULL,
                     withdrawal_contract_address TEXT NOT NULL,
                     price TEXT,
-                    totalSupply TEXT,
+                    total_supply TEXT,
                     surplus TEXT,
                     secured TEXT,
                     fulfilled_ether_balance TEXT
@@ -57,7 +57,7 @@ def insert_many_pools(pools: list[dict]) -> None:
     Inserts multiple pool records into the Pools table.
 
     Args:
-        pools (list[dict]): List of pool records to insert
+        pools (list[dict]): List of pool records to insert [{id, name, withdrawal_contract_address}...]
 
     Raises:
         DatabaseError: Error inserting many pools into table
@@ -66,8 +66,8 @@ def insert_many_pools(pools: list[dict]) -> None:
         with Database() as db:
             db.executemany(
                 """
-                INSERT INTO Pools (id, name, price, totalSupply, withdrawal_contract, surplus, secured, fulfilled_ether_balance)
-                VALUES (:id, :name, :price, :totalSupply, :withdrawal_contract, :surplus, :secured, :fulfilled_ether_balance)
+                INSERT INTO Pools (id, name, withdrawal_contract_address)
+                VALUES (:id, :name, :withdrawal_contract_address)
                 """,
                 pools,
             )
@@ -109,7 +109,7 @@ def update_multiple_pools(pool_updates: list[dict]) -> None:
     """Updates specified fields in the Pools table for multiple pool IDs.
 
     Args:
-        pool_updates (list): List of dictionaries containing pool_id, price, totalSupply, surplus, secured, fulfilled_ether_balance
+        pool_updates (list): List of dictionaries containing pool_id, price, total_supply, surplus, secured, fulfilled_ether_balance
 
     Raises:
         DatabaseError: Error updating pool fields
@@ -120,7 +120,7 @@ def update_multiple_pools(pool_updates: list[dict]) -> None:
                 db.execute(
                     """
                     UPDATE Pools
-                    SET price = :price, totalSupply = :totalSupply, surplus = :surplus, secured = :secured, fulfilled_ether_balance = :fulfilled_ether_balance
+                    SET price = :price, total_supply = :total_supply, surplus = :surplus, secured = :secured, fulfilled_ether_balance = :fulfilled_ether_balance
                     WHERE id = :pool_id
                     """,
                     update,
@@ -128,3 +128,37 @@ def update_multiple_pools(pool_updates: list[dict]) -> None:
             get_logger().debug(f"Updated multiple pools with new values")
     except Exception as e:
         raise DatabaseError("Error updating multiple pool fields") from e
+
+
+def pool_count() -> int:
+    """Returns the number of pools in the database.
+
+    Returns:
+        int: Number of pools in the database
+
+    Raises:
+        DatabaseError: Error counting pools in table Pools
+    """
+    try:
+        with Database() as db:
+            db.execute("SELECT COUNT(*) FROM Pools")
+            return db.fetchone()[0]
+    except Exception as e:
+        raise DatabaseError("Error counting pools in table Pools") from e
+
+
+def get_all_pool_ids() -> list[int]:
+    """Returns all the pool ids from the database.
+
+    Returns:
+        list: list of pool ids
+
+    Raises:
+        DatabaseError: Error getting all pool ids from table Pools
+    """
+    try:
+        with Database() as db:
+            db.execute("SELECT id FROM Pools")
+            return [int(row[0]) for row in db.fetchall()]
+    except Exception as e:
+        raise DatabaseError("Error getting all pool ids from table Pools") from e

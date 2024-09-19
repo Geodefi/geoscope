@@ -6,6 +6,7 @@ from src.globals import get_constants
 from src.helpers.slots import fetch_slots_batch
 from src.helpers.withdrawals import filter_withdrawals_batch, process_many_withdrawals
 from src.helpers.deposits import filter_deposits_batch, process_many_deposits
+from src.helpers.portal import update_portal_pools
 from src.database.slots import insert_many_slots, get_max_slot, fetch_block_number
 from src.database.deposits import insert_many_deposits
 from src.database.withdrawals import insert_many_withdrawals
@@ -52,6 +53,9 @@ class BeaconTrigger(Trigger):
         """
         fallback_slot: int = int(get_constants().chain.start.slot)
         db_slot_num: int = get_max_slot(fallback_slot)
+        block_number: int = fetch_block_number(curr_slot_num)
+
+        update_portal_pools(block_number)
 
         slot_process_steps: int = 10000  # TODO: config.json this
         for i in range(db_slot_num, curr_slot_num + 1, slot_process_steps):

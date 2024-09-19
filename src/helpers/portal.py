@@ -2,13 +2,23 @@
 # pylint: disable=invalid-name
 
 
+from itertools import repeat
 from typing import Iterable
+from geodefi import Geode
+from geodefi.globals import ID_TYPE
+from geodefi.utils import to_bytes32
 from web3.types import EventData
 from web3.contract.contract import ContractEvent
 
 from src.utils.thread import multithread
 from src.globals import get_logger, get_sdk
 from src.helpers.events import get_all_events
+from src.database.pools import (
+    pool_count,
+    insert_many_pools,
+    get_all_pool_ids,
+    update_multiple_pools,
+)
 
 
 def get_StakeParams() -> list:
@@ -97,3 +107,108 @@ def get_validators_batch(pks: list[str]) -> list[dict]:
     """
 
     return multithread(get_validator, pks)
+
+
+def get_pool_info(pool_index: int, block_number: int) -> dict:
+    """Returns the data for a pool with the given id.
+
+    Args:
+        pool_id (int): id of the pool
+
+    Returns:
+        dict: dictionary containing the gathered pool info
+    """
+    sdk: Geode = get_sdk()
+    pool_id: int = sdk.portal.functions.allIdsByType(ID_TYPE.POOL, pool_index).call(
+        block_identifier=block_number
+    )
+
+    # no need to check for block_number, since these data never change.
+    pool = sdk.portal.pool(pool_id)
+
+    return {
+        "id": str(pool_id),
+        "name": pool.NAME,
+        "withdrawal_contract_address": pool.withdrawalContract,
+    }
+
+
+def update_pool_ids(block_number: int) -> None:
+    """Updates the pool ids with the given block number.
+
+    Args:
+        block_number (int): block number to update the pool ids
+    """
+    number_of_pools: int = pool_count()
+    portal_pool_count: int = (
+        get_sdk()
+        .portal.functions.allIdsByTypeLength(ID_TYPE.POOL)
+        .call(block_identifier=block_number)
+    )
+
+    if portal_pool_count > number_of_pools:
+        get_logger().info(f"Updating pool ids from {number_of_pools} to {portal_pool_count}")
+        pools: list[dict] = multithread(
+            get_pool_info, range(number_of_pools, portal_pool_count), repeat(block_number)
+        )
+        insert_many_pools(pools)
+
+
+def get_pool_data(pool_id: int, block_number: int) -> dict:
+    """Returns the data for a pool with the given id.
+
+    Args:
+        pool_id (int): id of the pool
+
+    Returns:
+        dict: dictionary containing the gathered pool info
+    """
+    sdk: Geode = get_sdk()
+
+    # get data from portal
+    surplus: int = sdk.portal.functions.readUint(pool_id, to_bytes32("surplus")).call(
+        block_identifier=block_number
+    )
+    secured: int = sdk.portal.functions.readUint(pool_id, to_bytes32("secured")).call(
+        block_identifier=block_number
+    )
+
+    # get data from withdrawal contract
+    fulfilledEtherBalance: int = (
+        sdk.withdrawal_contract(pool_id)
+        .functions.QueueParams()
+        .call(block_identifier=block_number)["fulfilledEtherBalance"]
+    )
+
+    # get data from gETH
+    total_supply: int = sdk.gETH.totalSupply(pool_id).call(block_identifier=block_number)
+    price: int = sdk.gETH.pricePerShare(pool_id).call(block_identifier=block_number)
+    return {
+        "id": str(pool_id),
+        "surplus": str(surplus),
+        "secured": str(secured),
+        "fulfilled_ether_balance": str(fulfilledEtherBalance),
+        "total_supply": str(total_supply),
+        "price": str(price),
+    }
+
+
+def update_all_pools(block_number: int) -> None:
+    """Updates all the pools with the given block number.
+
+    Args:
+        block_number (int): block number to update the pools
+    """
+    pool_ids: list[int] = get_all_pool_ids()
+    pools: list[dict] = multithread(get_pool_data, pool_ids, repeat(block_number))
+    update_multiple_pools(pools)
+
+
+def update_portal_pools(block_number: int) -> None:
+    """Updates the portal pools with the given block number.
+
+    Args:
+        block_number (int): block number to update the pools
+    """
+    update_pool_ids(block_number)
+    update_all_pools(block_number)
