@@ -80,7 +80,8 @@ def insert_many_deposits(deposits: list[dict]) -> None:
 
 def check_deposit_by_slot(slot: int) -> bool:
     """Checks if there are any deposits saved on the database for given slot.
-    It effectively proves all deposits are processed and saved within the slot.
+    There can be many deposits in one slot. Determining just one 'saved' deposit
+    effectively proves all deposits are processed and saved for the given slot.
 
     Args:
         slot (int): slot to be checked for availabity

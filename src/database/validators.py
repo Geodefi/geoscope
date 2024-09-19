@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 from src.classes import Database
-from src.exceptions import DatabaseError
+from src.exceptions import DatabaseError, DatabaseMismatchError
 from src.globals import get_logger
 from src.helpers.portal import get_proposed_pubkeys
 from src.helpers.portal import get_validators_batch
@@ -202,7 +202,7 @@ def increase_withdrawn_balances(withdrawn_balances: dict):
 
 def check_pubkey(pubkey: str) -> bool:
     """Checks if a given pubkey is saved in the Database.
-        Also meaning if a pubkey is created through the Portal until the latest processed slot.
+        Determining if a pubkey is created through the Portal until the latest processed slot.
 
     Args:
         pubkey (str): public key of the validator
@@ -211,19 +211,28 @@ def check_pubkey(pubkey: str) -> bool:
         bool: True if the public key is in the database, False otherwise
 
     Raises:
+        DatabaseMismatchError: There are more than 1 validators with the same pubkey.
         DatabaseError: Error checking if pubkey is in table Validators
     """
     try:
         with Database() as db:
             db.execute("SELECT * FROM Validators WHERE pubkey = ?", (pubkey,))
-            return db.fetchone() is not None
+            result = db.fetchall()
+            if result:
+                if len(result) == 1:
+                    return True
+                else:
+                    raise DatabaseMismatchError(
+                        f"There are {len(result)} validators with the same pubkey in table Validators "
+                    )
+            return False
     except Exception as e:
         raise DatabaseError(f"Error checking if pubkey {pubkey} is in table Validators") from e
 
 
 def check_beacon_index(idx: int) -> bool:
     """Checks if a given beacon chain index is saved in the Database.
-        Also meaning if a pubkey is created through the Portal until the latest processed slot.
+        Determining if a pubkey is created through the Portal until the latest processed slot.
 
     Args:
         pubkey (str): public key of the validator
@@ -232,12 +241,21 @@ def check_beacon_index(idx: int) -> bool:
         bool: True if the public key is in the database, False otherwise
 
     Raises:
+        DatabaseMismatchError: There are more than 1 validators with the same beacon_index.
         DatabaseError: Error checking if pubkey is in table Validators
     """
     try:
         with Database() as db:
             db.execute("SELECT * FROM Validators WHERE beacon_index = ?", (idx,))
-            return db.fetchone() is not None
+            result = db.fetchall()
+            if result:
+                if len(result) == 1:
+                    return True
+                else:
+                    raise DatabaseMismatchError(
+                        f"There are {len(result)} validators with the same beacon_index in table Validators "
+                    )
+            return False
     except Exception as e:
         raise DatabaseError(f"Error checking if index {idx} is in table Validators") from e
 

@@ -1,7 +1,7 @@
 # src/database/pools.py
 
 from src.classes import Database
-from src.exceptions.classes.database import DatabaseError
+from src.exceptions.classes.database import DatabaseError, DatabaseMismatchError
 from src.globals import get_logger
 
 
@@ -84,14 +84,25 @@ def check_pool_by_id(pool_id: int) -> bool:
 
     Returns:
         bool: True if the pool exists, False otherwise
+
+    Raises:
+        DatabaseMismatchError: There are more tahn 1 Pools with the same ID.
+        DatabaseError: Error checking if pubkey is in table Validators
     """
     try:
         with Database() as db:
-            db.execute("SELECT 1 FROM Pools WHERE id = ?", (pool_id,))
-            result = db.fetchone()
-        return result is not None
+            db.execute("SELECT * FROM Pools WHERE id = ?", (pool_id,))
+            result = db.fetchall()
+            if result:
+                if len(result) == 1:
+                    return True
+                else:
+                    raise DatabaseMismatchError(
+                        f"There are {len(result)} Pools with the same ID in table Pools"
+                    )
+            return False
     except Exception as e:
-        raise DatabaseError(f"Error checking pool by ID") from e
+        raise DatabaseError(f"Error checking pool by ID in table Pools") from e
 
 
 def update_multiple_pools(pool_updates: list[dict]) -> None:
