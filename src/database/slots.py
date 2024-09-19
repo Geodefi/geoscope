@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 from src.classes import Database
-from src.exceptions.classes.database import DatabaseError
+from src.exceptions.classes.database import DatabaseError, DatabaseMismatchError
 from src.globals import get_logger
 
 
@@ -94,10 +94,22 @@ def fetch_block_number(slot: int) -> int:
 
     Returns:
         int: block number of given slot
+
+    Raises:
+        DatabaseMismatchError: There are more than 1 Slots with the same height.
+        DatabaseError: Error fetching block_number from table Slots
     """
     try:
         with Database() as db:
             db.execute("SELECT block_number FROM Slots WHERE slot = ?", (slot,))
-            return db.fetchone()[0]
+            result = db.fetchall()
+            if result:
+                if len(result) == 1:
+                    return result[0][0]
+                else:
+                    raise DatabaseMismatchError(
+                        f"There are {len(result)} slots with the same height in table Slots"
+                    )
+            return False
     except Exception as e:
         raise DatabaseError(f"Error fetching block_number from table Slots") from e

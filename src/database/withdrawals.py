@@ -82,7 +82,9 @@ def insert_many_withdrawals(withdrawals: list[dict]) -> None:
 
 def check_withdrawal_by_slot(slot: int) -> bool:
     """Checks if there are any withdrawals saved on the database for given slot.
-    It effectively proves all withdrawals are processed and saved within the slot.
+    There can be many withdrawals in one slot. Determining just one 'saved' deposit
+    effectively proves all withdrawals are processed and saved for the given slot.
+
 
     Args:
         slot (int): slot to be checked for availabity
