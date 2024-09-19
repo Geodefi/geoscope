@@ -3,7 +3,6 @@
 from src.classes import Database
 from src.exceptions.classes.database import DatabaseError
 from src.globals import get_logger
-from src.helpers.slots import fetch_slots_batch
 
 
 def create_slots_table() -> None:
@@ -22,7 +21,6 @@ def create_slots_table() -> None:
                     block_number INTEGER UNIQUE,
                     proposer_index INTEGER,
                     fee_recipient TEXT,
-                    fee_sum INTEGER
                 )
                 """
             )
@@ -66,14 +64,13 @@ def insert_many_slots(gathered_slots: list[dict]) -> None:
     try:
         with Database() as db:
             db.executemany(
-                "INSERT INTO Slots VALUES (?,?,?,?,?)",
+                "INSERT INTO Slots VALUES (?,?,?,?)",
                 [
                     (
                         a["slot"],
                         a["block_number"],
                         a["proposer_index"],
                         a["fee_recipient"],
-                        a["fee_sum"],
                     )
                     for a in gathered_slots
                 ],
