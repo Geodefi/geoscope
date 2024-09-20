@@ -19,11 +19,11 @@ def create_pools_table() -> None:
                     id TEXT NOT NULL PRIMARY KEY,
                     name TEXT NOT NULL,
                     withdrawal_credentials TEXT NOT NULL,
-                    price TEXT, => this should be fetched as well, no need to keep it here?
-                    totalSupply TEXT, => this should be fetched as well, no need to keep it here?
-                    surplus TEXT, => this should be fetched as well, no need to keep it here?
-                    secured TEXT, => this should be fetched as well, no need to keep it here?
-                    fulfilled_ether_balance TEXT => this should be fetched as well, no need to keep it here?
+                    price TEXT,
+                    totalSupply TEXT,
+                    surplus TEXT,
+                    secured TEXT,
+                    fulfilled_ether_balance TEXT 
                 )
                 """
             )
