@@ -64,16 +64,15 @@ def insert_many_slots(gathered_slots: list[dict]) -> None:
     try:
         with Database() as db:
             db.executemany(
-                "INSERT INTO Slots VALUES (?,?,?,?)",
-                [
-                    (
-                        a["slot"],
-                        a["block_number"],
-                        a["proposer_index"],
-                        a["fee_recipient"],
-                    )
-                    for a in gathered_slots
-                ],
+                """
+                INSERT INTO Slots VALUES (
+                    :slot,
+                    :block_number,
+                    :proposer_index,
+                    :fee_recipient,
+                )
+                """,
+                gathered_slots,
             )
     except Exception as e:
         raise DatabaseError(f"Error inserting many slots into table Slots") from e

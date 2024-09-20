@@ -11,14 +11,27 @@ from src.globals import get_logger, get_sdk
 from src.helpers.events import get_all_events
 
 
-def get_StakeParams() -> list:
+def get_StakeParams(block_identifier: str) -> list:
     """Returns the result of portal.StakeParams function.
 
     Returns:
         list: list of StakeParams
     """
     get_logger().debug("Calling StakeParams() from portal")
-    return get_sdk().portal.functions.StakeParams().call()
+    return get_sdk().portal.functions.StakeParams().call(block_identifier=block_identifier)
+
+
+def get_verification_index(block_identifier: str) -> int:
+    """Verification Index points to the last validator that has been approved by the oracle already.
+
+    Args:
+        block_identifier (int): block height to call the data from.\
+            Can be head, latest, finalized etc as well.
+
+    Returns:
+        int: VerificationIndex from portal.StakeParams
+    """
+    return get_StakeParams(block_identifier)[2]
 
 
 def get_proposed_pubkeys(first_block, last_block) -> list[str]:
@@ -46,8 +59,8 @@ def get_proposed_pubkeys(first_block, last_block) -> list[str]:
     return flattened_pks
 
 
-def get_validator(pubkey: str) -> dict:
-    """Returns the data for a validator with the given pubkey.
+def get_validator_proper(pubkey: str) -> dict:
+    """Returns the portal data for a validator with the given pubkey.
     Only processes the Portal information, leaves the Beacon chain related ones for later.
     Since the deposits might not be processed at the moment.
     Note that the Portal data gathered here, never changes,
@@ -57,19 +70,17 @@ def get_validator(pubkey: str) -> dict:
         pubkey (str): public key of the validator
 
     Returns:
-        dict: dictionary containing the gathered validator info
+        dict: dictionary containing the gathered validator info \
+            with the keys appropriated according to the database structure.
     """
-    # TODO: delete this.
     # Although all of the required data for the validators should be available,
     # the following ones might not yet since the deposit can be still not yet processed.
     # So, instead of not processing them, we will create the indexes
     # but fill them later when deposits are being processed.
-
     val = get_sdk().portal.validator(pubkey)
     return {
         "pubkey": pubkey,
         "portal_index": val.portal_index,
-        "portal_state": val.portal_state,
         "pool_id": val.poolId,
         "operator_id": val.operatorId,
         "pool_fee": val.poolFee,
@@ -77,10 +88,11 @@ def get_validator(pubkey: str) -> dict:
         "infrastructure_fee": val.infrastructureFee,
         "signature31": val.signature31,
         "beacon_index": None,
-        "beacon_status": None,
         "withdrawal_credentials": None,
         "exit_epoch": None,
-        "beacon_balance": 0,
+        "proposal_signature": None,
+        "stake_signature": None,
+        "proposal_slot": None,
         "withdrawn_balance": 0,
         "fee_recipient_balance": 0,
     }
@@ -96,4 +108,4 @@ def get_validators_batch(pks: list[str]) -> list[dict]:
         list[dict]: list of dictionaries containing the validator info
     """
 
-    return multithread(get_validator, pks)
+    return multithread(get_validator_proper, pks)
