@@ -233,15 +233,16 @@ def increase_withdrawn_balances(withdrawn_balances: dict):
             # and than increase before setting on db again
 
             validator_indices = withdrawn_balances.keys()
-            placeholders = ",".join("?" * len(validator_indices))
-            db.execute(
-                f"""SELECT validator_index, withdrawn_balance 
-                FROM Validators 
-                WHERE validator_index 
-                IN ({placeholders})""",
-                validator_indices,
-            )
-            balances = db.fetchall()
+            balances = []
+            for idx in validator_indices:
+                db.execute(
+                    f"""SELECT validator_index, withdrawn_balance 
+                    FROM Validators 
+                    WHERE validator_index == :validator_index""",
+                    {"validator_index": idx},
+                )
+                balance = db.fetchall()
+                balances.append(balance)
 
             updated_balances = []
             for validator_index, balance in balances:
@@ -345,8 +346,8 @@ def fetch_validator_balances() -> list[dict]:
 
 def detect_proposed_validators(block_identifier: str) -> list[dict]:
     """Detects pending validators that are waiting to be approved by Oracle:
-    proposal_signature exists, meaning the proposal deposit was processed.
-    Has lower index than verification_index, meaning its portal_state is PENDING.
+        - Proposal_signature exists, meaning the proposal deposit was processed.
+        - Has lower index than verification_index, meaning its portal_state is PENDING.
 
     Returns:
         list[dict]: List of validators with pubkey, portal_index, proposal_signature
