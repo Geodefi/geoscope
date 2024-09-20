@@ -74,6 +74,7 @@ def insert_many_slots(gathered_slots: list[dict]) -> None:
                 """,
                 gathered_slots,
             )
+        get_logger().debug(f"Inserted {len(gathered_slots)} new slots in Slots table")
     except Exception as e:
         raise DatabaseError(f"Error inserting many slots into table Slots") from e
 

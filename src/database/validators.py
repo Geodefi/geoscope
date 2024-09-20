@@ -53,6 +53,7 @@ def drop_validators_table() -> None:
     try:
         with Database() as db:
             db.execute("""DROP TABLE IF EXISTS Validators""")
+        get_logger().debug(f"Dropped Table: Validators")
     except Exception as e:
         raise DatabaseError(f"Error dropping Validators table") from e
 
@@ -99,6 +100,7 @@ def insert_many_validators(new_validators: list[dict]) -> None:
                 """,
                 new_validators,
             )
+        get_logger().debug(f"Inserted {len(new_validators)} new validators in Validators table")
     except Exception as e:
         raise DatabaseError(f"Error inserting many validators into table Validators") from e
 

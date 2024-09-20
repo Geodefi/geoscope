@@ -73,6 +73,7 @@ def insert_many_deposits(deposits: list[dict]) -> None:
                 """,
                 deposits,
             )
+        get_logger().debug(f"Inserted {len(deposits)} new deposits in Deposits table")
     except Exception as e:
         raise DatabaseError(f"Error inserting many deposits into table Deposits") from e
 

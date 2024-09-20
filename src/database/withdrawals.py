@@ -72,7 +72,7 @@ def insert_many_withdrawals(withdrawals: list[dict]) -> None:
                     :amount
                     :slot
                 )
-            """,
+                """,
                 withdrawals,
             )
     except Exception as e:

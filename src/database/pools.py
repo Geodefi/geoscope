@@ -66,8 +66,16 @@ def insert_many_pools(pools: list[dict]) -> None:
         with Database() as db:
             db.executemany(
                 """
-                INSERT INTO Pools (id, name, price, totalSupply, withdrawal_contract, surplus, secured, fulfilled_ether_balance)
-                VALUES (:id, :name, :price, :totalSupply, :withdrawal_contract, :surplus, :secured, :fulfilled_ether_balance)
+                INSERT INTO Pools VALUES (
+                    :id,
+                    :name,
+                    :price,
+                    :totalSupply,
+                    :withdrawal_contract,
+                    :surplus,
+                    :secured,
+                    :fulfilled_ether_balance
+                )
                 """,
                 pools,
             )
