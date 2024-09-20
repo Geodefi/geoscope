@@ -20,7 +20,11 @@ from src.globals.sdk import init_sdk
 
 from src.utils.gas import parse_gas, fetch_gas
 from src.utils.notify import send_email
-from src.database.deposits import reinitialize_deposits_table, create_deposits_table
+from src.database.deposits import create_deposits_table, reinitialize_deposits_table
+from src.database.pools import create_pools_table, reinitialize_pools_table
+from src.database.slots import create_slots_table, reinitialize_slots_table
+from src.database.validators import create_validators_table, reinitialize_validators_table
+from src.database.withdrawals import create_withdrawals_table, reinitialize_withdrawals_table
 
 
 def preflight_checks(test_email: bool = False):
@@ -183,8 +187,16 @@ def init_dbs(reset: bool = False):
     if reset:
         get_logger().warning("Dropping the database...")
         reinitialize_deposits_table()
+        reinitialize_pools_table()
+        reinitialize_slots_table()
+        reinitialize_validators_table()
+        reinitialize_withdrawals_table()
     else:
         create_deposits_table()
+        create_pools_table()
+        create_slots_table()
+        create_validators_table()
+        create_withdrawals_table()
 
 
 def run_daemons():
