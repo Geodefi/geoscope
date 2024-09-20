@@ -15,6 +15,7 @@ from src.helpers.merkle import (
     prepare_report,
     report_beacon,
 )
+from src.helpers.validators import should_verify_validators, verify_validators_batch
 
 
 class BeaconTrigger(Trigger):
@@ -50,9 +51,9 @@ class BeaconTrigger(Trigger):
 
         db_latest_block_number = fetch_block_number(curr_slot_num)
 
-        self.process_report_beacon(db_latest_block_number)
+        self.process_report_beacon(curr_slot_num, db_latest_block_number)
 
-        self.process_verifications(db_latest_block_number)
+        self.process_verifications(curr_slot_num, db_latest_block_number)
 
     # pylint: disable-next=unused-argument
     def index_slots(self, curr_slot_num, *args) -> None:
@@ -99,8 +100,9 @@ class BeaconTrigger(Trigger):
         # processing the validators, deposits and withdrawals.
         insert_many_slots(gathered_slots)
 
-    def process_report_beacon(self, block_number: int):
+    def process_report_beacon(self, slot_number: int, block_number: int):
         should_update, prices = should_update_merkle("haha")
+
         if should_update:
             balances: dict = build_balances_data
             price_merkle_root, balance_merkle_root, all_validators_count = prepare_report(
@@ -108,13 +110,22 @@ class BeaconTrigger(Trigger):
             )
             report_beacon(price_merkle_root, balance_merkle_root, all_validators_count)
 
-    def process_verifications(self, block_number: int):
+    def process_verifications(self, slot_number: int, block_number: int):
         """
         1. Detects validators to verify
         2. Checks if it is yet the right time to verify
         3. Verifies
         4. Updates verification index accordingly
-
         Args:
             block_number (int): block number to be
         """
+
+        pending_validators: list[tuple] = detect_proposed_validators(block_identifier=block_number)
+
+        aliens = []
+        if should_verify_validators(slot_number, pending_validators):
+            aliens = verify_validators_batch(pending_validators)
+
+        new_verification_index: int = max(pending_validators, key=lambda x: x["portal_index"])
+
+        # TODO:  --- call the tx handler with new_verification_index and aliens ---

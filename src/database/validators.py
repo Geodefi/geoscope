@@ -241,12 +241,12 @@ def increase_withdrawn_balances(withdrawn_balances: dict):
                     WHERE validator_index == :validator_index""",
                     {"validator_index": idx},
                 )
-                balance = db.fetchall()
+                balance = db.fetchone()
                 balances.append(balance)
 
             updated_balances = []
-            for validator_index, balance in balances:
-                new_balance = int(withdrawn_balances[validator_index]) + int(balance)
+            for validator_index, withdrawn_balance in balances:
+                new_balance = int(withdrawn_balances[validator_index]) + int(withdrawn_balance)
 
                 updated_balances.append(
                     {
@@ -330,7 +330,7 @@ def check_beacon_index(idx: int) -> bool:
         raise DatabaseError(f"Error checking if index {idx} is in table Validators") from e
 
 
-def fetch_validator_balances() -> list[dict]:
+def fetch_validator_balances() -> list[tuple]:
     """Fetches the pubkey and validator balances (beacon and withdrawn) from the database.
     Returns:
         list[dict]: List of pubkey, withdrawn_balance, fee_recipient_balance
@@ -344,25 +344,33 @@ def fetch_validator_balances() -> list[dict]:
         raise DatabaseError(f"Error fetching validators from table Validators") from e
 
 
-def detect_proposed_validators(block_identifier: str) -> list[dict]:
+def detect_proposed_validators(block_identifier: str) -> list[tuple]:
     """Detects pending validators that are waiting to be approved by Oracle:
         - Proposal_signature exists, meaning the proposal deposit was processed.
         - Has lower index than verification_index, meaning its portal_state is PENDING.
 
     Returns:
-        list[dict]: List of validators with pubkey, portal_index, proposal_signature
+        list[dict]: List of validators with pubkey, portal_index pool_id signature31 withdrawal_credentials, proposal_signature, stake_signature proposal_slot
     """
     v_idx: int = get_verification_index(block_identifier)
     try:
         with Database() as db:
             db.execute(
                 """
-                SELECT pubkey, portal_index, proposal_signature
+                SELECT 
+                    pubkey, 
+                    portal_index,
+                    pool_id,
+                    signature31,
+                    withdrawal_credentials, 
+                    proposal_signature, 
+                    stake_signature,
+                    proposal_slot
                 FROM Validators 
                 WHERE proposal_signature IS NOT NULL,
-                AND stake_signature IS NULL
+                AND portal_index > :verification_index
                 """,
-                (v_idx,),
+                {"verification_index": v_idx},
             )
             return db.fetchall()
     except Exception as e:

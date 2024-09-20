@@ -18,12 +18,12 @@ def create_pools_table() -> None:
                 CREATE TABLE IF NOT EXISTS Pools (
                     id TEXT NOT NULL PRIMARY KEY,
                     name TEXT NOT NULL,
-                    withdrawal_contract_address TEXT NOT NULL,
-                    price TEXT,
-                    totalSupply TEXT,
-                    surplus TEXT,
-                    secured TEXT,
-                    fulfilled_ether_balance TEXT
+                    withdrawal_credentials TEXT NOT NULL,
+                    price TEXT, => this should be fetched as well, no need to keep it here?
+                    totalSupply TEXT, => this should be fetched as well, no need to keep it here?
+                    surplus TEXT, => this should be fetched as well, no need to keep it here?
+                    secured TEXT, => this should be fetched as well, no need to keep it here?
+                    fulfilled_ether_balance TEXT => this should be fetched as well, no need to keep it here?
                 )
                 """
             )
@@ -71,7 +71,7 @@ def insert_many_pools(pools: list[dict]) -> None:
                     :name,
                     :price,
                     :totalSupply,
-                    :withdrawal_contract,
+                    :withdrawal_credentials,
                     :surplus,
                     :secured,
                     :fulfilled_ether_balance

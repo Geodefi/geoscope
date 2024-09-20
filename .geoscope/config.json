@@ -1,4 +1,5 @@
 {
+  "version": 1,
   "chains": {
     "holesky": {
       "start": {
@@ -14,9 +15,9 @@
     }
   },
   "strategy": {
-    "MIN_VERIFICATION_DELAY": 2400,
-    "MAX_VERIFICATION_DELAY": 7200,
-    "MAX_PENDING_PROPOSALS": 10
+    "min_verification_delay": 3600,
+    "max_verification_delay": 86400,
+    "max_pending_validators": 10
   },
   "network": {
     "refresh_rate": 60,

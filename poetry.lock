@@ -410,6 +410,17 @@ jupyter = ["ipython (>=7.8.0)", "tokenize-rt (>=3.2.0)"]
 uvloop = ["uvloop (>=0.15.2)"]
 
 [[package]]
+name = "cached-property"
+version = "1.5.2"
+description = "A decorator for caching properties in classes."
+optional = false
+python-versions = "*"
+files = [
+    {file = "cached-property-1.5.2.tar.gz", hash = "sha256:9fa5755838eecbb2d234c3aa390bd80fbd3ac6b6869109bfc1b499f7bd89a130"},
+    {file = "cached_property-1.5.2-py2.py3-none-any.whl", hash = "sha256:df4f613cf7ad9a588cc381aaf4a512d26265ecebd5eb9e1ba12f1319eb85a6a0"},
+]
+
+[[package]]
 name = "certifi"
 version = "2024.8.30"
 description = "Python package for providing Mozilla's CA Bundle."
@@ -1909,6 +1920,27 @@ files = [
 tests = ["pytest"]
 
 [[package]]
+name = "py-ecc"
+version = "7.0.1"
+description = "py-ecc: Elliptic curve crypto in python including secp256k1, alt_bn128, and bls12_381"
+optional = false
+python-versions = "<4,>=3.8"
+files = [
+    {file = "py_ecc-7.0.1-py3-none-any.whl", hash = "sha256:84a8b4d436163c83c65345a68e32f921ef6e64374a36f8e561f0455b4b08f5f2"},
+    {file = "py_ecc-7.0.1.tar.gz", hash = "sha256:557461f42e57294d734305a30faf6b8903421651871e9cdeff8d8e67c6796c70"},
+]
+
+[package.dependencies]
+cached-property = ">=1.5.1"
+eth-typing = ">=3.0.0"
+eth-utils = ">=2.0.0"
+
+[package.extras]
+dev = ["build (>=0.9.0)", "bumpversion (>=0.5.3)", "ipython", "pre-commit (>=3.4.0)", "pytest (>=7.0.0)", "pytest-xdist (>=2.4.0)", "sphinx (>=6.0.0)", "sphinx-autobuild (>=2021.3.14)", "sphinx-rtd-theme (>=1.0.0)", "towncrier (>=21,<22)", "tox (>=4.0.0)", "twine", "wheel"]
+docs = ["sphinx (>=6.0.0)", "sphinx-autobuild (>=2021.3.14)", "sphinx-rtd-theme (>=1.0.0)", "towncrier (>=21,<22)"]
+test = ["pytest (>=7.0.0)", "pytest-xdist (>=2.4.0)"]
+
+[[package]]
 name = "pycparser"
 version = "2.22"
 description = "C parser in Python"
@@ -2051,6 +2083,19 @@ tomlkit = ">=0.10.1"
 [package.extras]
 spelling = ["pyenchant (>=3.2,<4.0)"]
 testutils = ["gitpython (>3)"]
+
+[[package]]
+name = "pyrsistent"
+version = "0.16.1"
+description = "Persistent/Functional/Immutable data structures"
+optional = false
+python-versions = ">=2.7"
+files = [
+    {file = "pyrsistent-0.16.1.tar.gz", hash = "sha256:aa2ae1c2e496f4d6777f869ea5de7166a8ccb9c2e06ebcf6c7ff1b670c98c5ef"},
+]
+
+[package.dependencies]
+six = "*"
 
 [[package]]
 name = "pytest"
@@ -2555,6 +2600,28 @@ files = [
 ]
 
 [[package]]
+name = "ssz"
+version = "0.5.0"
+description = "ssz: Python implementation of the Simple Serialization encoding and decoding"
+optional = false
+python-versions = "<4,>=3.8"
+files = [
+    {file = "ssz-0.5.0-py3-none-any.whl", hash = "sha256:111dec40bee7cb7c3d52fe621a2247d5420ab999ffc0cbecb470782c28b56414"},
+    {file = "ssz-0.5.0.tar.gz", hash = "sha256:5e0fe0483c5c9bdf3ea0fa957986b48ca34c784af57e39257863dd3743e20861"},
+]
+
+[package.dependencies]
+eth-utils = ">=2"
+lru-dict = ">=1.1.6"
+pyrsistent = ">=0.16.0,<0.17"
+
+[package.extras]
+dev = ["build (>=0.9.0)", "bumpversion (>=0.5.3)", "hypothesis (==4.54.0)", "ipython", "pre-commit (>=3.4.0)", "pytest (>=7.0.0)", "pytest-xdist (>=2.4.0)", "ruamel.yaml (>=0.17.0)", "sphinx (>=6.0.0)", "sphinx-rtd-theme (>=1.0.0)", "towncrier (>=21,<22)", "tox (>=4.0.0)", "twine", "wheel"]
+docs = ["sphinx (>=6.0.0)", "sphinx-rtd-theme (>=1.0.0)", "towncrier (>=21,<22)"]
+test = ["hypothesis (==4.54.0)", "pytest (>=7.0.0)", "pytest-xdist (>=2.4.0)"]
+yaml = ["ruamel.yaml (>=0.17.0)"]
+
+[[package]]
 name = "stack-data"
 version = "0.6.3"
 description = "Extract data from python stack frames and tracebacks for informative displays"
@@ -2918,4 +2985,4 @@ multidict = ">=4.0"
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.10,<=3.12"
-content-hash = "ae6fe507916faf2626f57bff28bab66f8050020d10ca4ed051a6eb14d129f0cb"
+content-hash = "68e9062568e367f819f4e7f96561ea93f701f3585333050270a48f018c5de837"

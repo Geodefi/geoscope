@@ -5,7 +5,6 @@ from src.utils.list import flatten
 from src.database.validators import check_pubkey, update_beacon_constants
 from src.database.deposits import check_deposit_by_slot
 from src.helpers.beacon import fetch_validators_batch
-from src.globals import get_config
 
 
 def filter_deposits(slot: int, deposits: list[dict]) -> list:
