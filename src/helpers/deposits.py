@@ -1,11 +1,10 @@
 # -*- coding: utf-8 -*-
-
+from src.exceptions.helpers.deposits import ValidatorMismatchError
 from src.utils.thread import multithread
 from src.utils.list import flatten
-from src.database.validators import check_pubkey, update_beacon_values
+from src.database.validators import check_pubkey, update_beacon_constants
 from src.database.deposits import check_deposit_by_slot
 from src.helpers.beacon import fetch_validators_batch
-from src.globals import get_config
 
 
 def filter_deposits(slot: int, deposits: list[dict]) -> list:
@@ -58,39 +57,35 @@ def filter_deposits_batch(slots: list[dict]) -> list[dict]:
     return flatten(filtered_deposits)
 
 
-def process_many_deposits(slot: int, deposits: list[dict]) -> None:
-    """When a deposit is encontered, we ensured that the pubkey is reachable on the beaconchain.
-    So, we will update the Validators db for:
-        - beacon_index
-        - beacon_status
-        - withdrawal_credentials
-        - exit_epoch
-        - beacon_balance
+def __parse_validator_data(deposit, validator) -> list[dict]:
+    pk: str = deposit["pubkey"]
 
+    if pk != validator["validator"]["pubkey"]:
+        raise ValidatorMismatchError(f"{deposit['pk']} returned a pubkey ")
+
+    return {
+        "pubkey": deposit["pubkey"],
+        "signature": deposit["signature"],
+        "slot": deposit["slot"],
+        "beacon_index": validator["index"],
+        "withdrawal_credentials": validator["validator"]["withdrawal_credentials"],
+        "exit_epoch": validator["validator"]["exit_epoch"],
+    }
+
+
+def process_many_deposits(slot: int, deposits: list[dict]) -> None:
+    """When a deposit is encountered, we ensured that the pubkey is reachable on the beaconchain.
+        So, we will update the Validators db.
 
     Args:
         slot (int): slot to process deposits from
         deposits (list[dict]): list of deposits to process
     """
-    pubkeys: list = [d["pubkey"] for d in deposits]
-    len_pks: int = len(pubkeys)
+    # fetch_validators_batch respects the indices.
+    validators: list[dict] = fetch_validators_batch(slot, deposits)
 
-    beacon_step = get_config().chains.beacon.beacon_step
-    validators = []
-    for i in range(0, len_pks, beacon_step):
-        batch: list = fetch_validators_batch(slot, pubkeys[i : i + beacon_step])
-        validators.extend(batch)
+    # Prepare the validators data database:
+    parsed_validators: list[dict] = multithread(__parse_validator_data, deposits, validators)
 
     # Now that we have validators data, update the db:
-    parsed_validators: list[dict] = [
-        {
-            "beacon_index": v["index"],
-            "beacon_status": v["status"],
-            "withdrawal_credentials": v["validator"]["withdrawal_credentials"],
-            "exit_epoch": v["validator"]["exit_epoch"],
-            "beacon_balance": v["balance"],
-            "pubkey": v["validator"]["pubkey"],
-        }
-        for v in validators
-    ]
-    update_beacon_values(parsed_validators)
+    update_beacon_constants(parsed_validators)

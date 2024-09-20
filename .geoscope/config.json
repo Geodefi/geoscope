@@ -1,4 +1,5 @@
 {
+  "version": 1,
   "chains": {
     "holesky": {
       "start": {
@@ -11,10 +12,12 @@
       "range": "3000",
       "execution_api": "https://rpc.ankr.com/eth_holesky/<API_KEY_EXECUTION>",
       "consensus_api": "https://rpc.ankr.com/premium-http/eth_holesky_beacon/<API_KEY_CONSENSUS>"
-    },
-    "beacon": {
-      "beacon_step": 100
     }
+  },
+  "strategy": {
+    "min_verification_delay": 3600,
+    "max_verification_delay": 86400,
+    "max_pending_validators": 10
   },
   "network": {
     "refresh_rate": 60,

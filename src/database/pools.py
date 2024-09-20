@@ -18,12 +18,12 @@ def create_pools_table() -> None:
                 CREATE TABLE IF NOT EXISTS Pools (
                     id TEXT NOT NULL PRIMARY KEY,
                     name TEXT NOT NULL,
-                    withdrawal_contract_address TEXT NOT NULL,
+                    withdrawal_credentials TEXT NOT NULL,
                     price TEXT,
                     total_supply TEXT,
                     surplus TEXT,
                     secured TEXT,
-                    fulfilled_ether_balance TEXT
+                    fulfilled_ether_balance TEXT 
                 )
                 """
             )
@@ -66,8 +66,21 @@ def insert_many_pools(pools: list[dict]) -> None:
         with Database() as db:
             db.executemany(
                 """
+
+                INSERT INTO Pools VALUES (
+                    :id,
+                    :name,
+                    :price,
+                    :totalSupply,
+                    :withdrawal_credentials,
+                    :surplus,
+                    :secured,
+                    :fulfilled_ether_balance
+                )
+
                 INSERT INTO Pools (id, name, withdrawal_contract_address)
                 VALUES (:id, :name, :withdrawal_contract_address)
+
                 """,
                 pools,
             )

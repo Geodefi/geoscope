@@ -3,8 +3,7 @@
 from src.classes import Database
 from src.exceptions import DatabaseError, DatabaseMismatchError
 from src.globals import get_logger
-from src.helpers.portal import get_proposed_pubkeys
-from src.helpers.portal import get_validators_batch
+from src.helpers.portal import get_proposed_pubkeys, get_verification_index, get_validators_batch
 
 
 def create_validators_table() -> None:
@@ -22,7 +21,6 @@ def create_validators_table() -> None:
                 CREATE TABLE IF NOT EXISTS Validators (
                     pubkey TEXT NOT NULL PRIMARY KEY,
                     portal_index INTEGER NOT NULL UNIQUE,
-                    portal_state INTEGER NOT NULL,
                     pool_id TEXT NOT NULL,
                     operator_id TEXT NOT NULL,
                     pool_fee TEXT NOT NULL,
@@ -30,10 +28,11 @@ def create_validators_table() -> None:
                     infrastructure_fee TEXT NOT NULL,
                     signature31 TEXT NOT NULL,
                     beacon_index INTEGER UNIQUE,
-                    beacon_state TEXT,
                     withdrawal_credentials TEXT,
                     exit_epoch TEXT,
-                    beacon_balance TEXT,
+                    stake_signature TEXT,
+                    proposal_signature TEXT,
+                    proposal_slot INT,
                     withdrawn_balance TEXT,
                     fee_recipient_balance TEXT 
                 )
@@ -54,6 +53,7 @@ def drop_validators_table() -> None:
     try:
         with Database() as db:
             db.execute("""DROP TABLE IF EXISTS Validators""")
+        get_logger().debug(f"Dropped Table: Validators")
     except Exception as e:
         raise DatabaseError(f"Error dropping Validators table") from e
 
@@ -78,29 +78,29 @@ def insert_many_validators(new_validators: list[dict]) -> None:
     try:
         with Database() as db:
             db.executemany(
-                "INSERT INTO Validators VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
-                [
-                    (
-                        a["pubkey"],
-                        int(a["portal_index"]),
-                        a["portal_state"],
-                        a["pool_id"],
-                        a["operator_id"],
-                        a["pool_fee"],
-                        a["operator_fee"],
-                        a["infrastructure_fee"],
-                        a["signature31"],
-                        a["beacon_index"],
-                        int(a["beacon_state"]),
-                        a["withdrawal_credentials"],
-                        a["exit_epoch"],
-                        0,
-                        0,
-                        0,
-                    )
-                    for a in new_validators
-                ],
+                """
+                INSERT INTO Validators VALUES (
+                    :pubkey,
+                    :portal_index,
+                    :pool_id,
+                    :operator_id,
+                    :pool_fee,
+                    :operator_fee,
+                    :infrastructure_fee,
+                    :signature31,
+                    :beacon_index,
+                    :withdrawal_credentials,
+                    :exit_epoch,
+                    :stake_signature,
+                    :proposal_signature,
+                    :proposal_slot,
+                    :withdrawn_balance,
+                    :fee_recipient_balance
+                )
+                """,
+                new_validators,
             )
+        get_logger().debug(f"Inserted {len(new_validators)} new validators in Validators table")
     except Exception as e:
         raise DatabaseError(f"Error inserting many validators into table Validators") from e
 
@@ -119,35 +119,96 @@ def update_portal_validators(first_block, last_block) -> None:
     fill_validators_table(pks)
 
 
-def update_beacon_values(validators: list[dict]) -> None:
-    """Saves the beacon balances of the validators with the given pubkeys.
-
-    Args:
-        validators (list[dict]): list of dicts of parsed validator data:
+def update_beacon_constants(validators: list[dict]) -> None:
+    """Saves the constant values from the beacon chain for the validators with the given pubkeys.
+    These values should be updated only once. Thus,
+    if stake_signature exists, this deposit is unexpected, raise.
+    if proposal_signature exists, this deposit is the stake_deposit. Update:
+        - stake_signature
+    if not:
+        - proposal_signature
+        - proposal_slot
+        - pubkey
         - beacon_index
-        - beacon_status
         - withdrawal_credentials
         - exit_epoch
-        - beacon_balance
-        - pubkey
+    will be updated.
+
+    Args:
+        validators (list[dict]): list of dicts of parsed validator data.
+
 
     Raises:
         DatabaseError: Error updating beacon balances of validators
     """
-    # TODO: turn all positional  params like "?" into named params like ":beacon_index", safer.
     try:
         with Database() as db:
-            db.executemany(
-                """UPDATE Validators 
-                    SET beacon_index = :beacon_index,
-                        beacon_status = :beacon_status,
-                        withdrawal_credentials = :withdrawal_credentials,
-                        exit_epoch = :exit_epoch,
-                        beacon_balance = :beacon_balance
+            # Prepare lists to store the batches for executemany
+            update_stake_signature_batch = []
+            update_fields_batch = []
+
+            for validator in validators:
+                pubkey = validator["pubkey"]
+
+                # Fetch the existing validator by pubkey
+                db_val = db.execute(
+                    """SELECT proposal_signature, stake_signature
+                    FROM Validators 
                     WHERE pubkey = :pubkey
-                """,
-                validators,
-            )
+                    """,
+                    {"pubkey": pubkey},
+                ).fetchone()
+
+                # Check if stake_signature already exists
+                if db_val["stake_signature"]:
+                    raise DatabaseMismatchError(
+                        f"Unexpected deposit: stake_signature already exists for pubkey {pubkey}"
+                    )
+
+                # Add to the appropriate batch based on proposal_signature
+                if db_val["proposal_signature"]:
+                    # Add to batch for updating only stake_signature
+                    update_stake_signature_batch.append(
+                        {"stake_signature": validator["stake_signature"], "pubkey": pubkey}
+                    )
+                else:
+                    # Add to batch for updating other fields
+                    update_fields_batch.append(
+                        {
+                            "proposal_signature": validator["proposal_signature"],
+                            "proposal_slot": validator["proposal_slot"],
+                            "pubkey": validator["pubkey"],
+                            "beacon_index": validator["beacon_index"],
+                            "withdrawal_credentials": validator["withdrawal_credentials"],
+                            "exit_epoch": validator["exit_epoch"],
+                        }
+                    )
+
+            # Execute batch for updating stake_signature only for proposal deposit
+            if update_stake_signature_batch:
+                db.executemany(
+                    """UPDATE Validators 
+                    SET stake_signature = :signature
+                    WHERE pubkey = :pubkey
+                    """,
+                    update_stake_signature_batch,
+                )
+
+            # Execute batch for updating other fields for stake deposit
+            if update_fields_batch:
+                db.executemany(
+                    """UPDATE Validators 
+                    SET proposal_signature = :signature,
+                        proposal_slot = :slot,
+                        pubkey = :pubkey,
+                        beacon_index = :beacon_index,
+                        withdrawal_credentials = :withdrawal_credentials,
+                        exit_epoch = :exit_epoch
+                    WHERE pubkey = :pubkey
+                    """,
+                    update_fields_batch,
+                )
+
         get_logger().debug(f"Updated beaconchain related data for {len(validators)} validators")
     except Exception as e:
         raise DatabaseError(f"Error updating beaconchain related data on table Validators") from e
@@ -157,7 +218,8 @@ def increase_withdrawn_balances(withdrawn_balances: dict):
     """_summary_
 
     Args:
-        withdrawn_balances (dict): validator indices mapped to withdrawn amount to be processed, {validator_index: amount}
+        withdrawn_balances (dict): {validator_index: amount},\
+            validator indices mapped to withdrawn amount to be processed. 
 
     Raises:
         DatabaseError: Error updating beacon balances of validators
@@ -165,20 +227,26 @@ def increase_withdrawn_balances(withdrawn_balances: dict):
 
     try:
         with Database() as db:
-            # Note that, we use TEXT on withdrawn_balance, thus we can not simply do withdrawn_balance + :amount here.
-            # So we will first fetch the current balances and than increase before setting on db again
+            # Note that, we use TEXT on withdrawn_balance,
+            # thus we can not simply do withdrawn_balance + :amount here.
+            # So we will first fetch the current balances
+            # and than increase before setting on db again
 
             validator_indices = withdrawn_balances.keys()
-            placeholders = ",".join("?" * len(validator_indices))
-            db.execute(
-                f"SELECT validator_index, withdrawn_balance FROM Validators WHERE validator_index IN ({placeholders})",
-                validator_indices,
-            )
-            balances = db.fetchall()
+            balances = []
+            for idx in validator_indices:
+                db.execute(
+                    f"""SELECT validator_index, withdrawn_balance 
+                    FROM Validators 
+                    WHERE validator_index == :validator_index""",
+                    {"validator_index": idx},
+                )
+                balance = db.fetchone()
+                balances.append(balance)
 
             updated_balances = []
-            for validator_index, balance in balances:
-                new_balance = int(withdrawn_balances[validator_index]) + int(balance)
+            for validator_index, withdrawn_balance in balances:
+                new_balance = int(withdrawn_balances[validator_index]) + int(withdrawn_balance)
 
                 updated_balances.append(
                     {
@@ -223,7 +291,8 @@ def check_pubkey(pubkey: str) -> bool:
                     return True
                 else:
                     raise DatabaseMismatchError(
-                        f"There are {len(result)} validators with the same pubkey in table Validators "
+                        f"There are {len(result)} validators \
+                            with the same pubkey in table Validators"
                     )
             return False
     except Exception as e:
@@ -253,22 +322,56 @@ def check_beacon_index(idx: int) -> bool:
                     return True
                 else:
                     raise DatabaseMismatchError(
-                        f"There are {len(result)} validators with the same beacon_index in table Validators "
+                        f"There are {len(result)} validators with \
+                            the same beacon_index in table Validators"
                     )
             return False
     except Exception as e:
         raise DatabaseError(f"Error checking if index {idx} is in table Validators") from e
 
 
-def fetch_validator_balances() -> list[dict]:
+def fetch_validator_balances() -> list[tuple]:
     """Fetches the pubkey and validator balances (beacon and withdrawn) from the database.
-
     Returns:
-        list[dict]: List of validators
+        list[dict]: List of pubkey, withdrawn_balance, fee_recipient_balance
     """
+    # TODO: this function is not proper, it might be better to change according to Crash's implementation, later.
     try:
         with Database() as db:
-            db.execute("SELECT pubkey, beacon_balance, withdrawn_balance FROM Validators")
+            db.execute("SELECT pubkey, withdrawn_balance, fee_recipient_balance FROM Validators")
+            return db.fetchall()
+    except Exception as e:
+        raise DatabaseError(f"Error fetching validators from table Validators") from e
+
+
+def detect_proposed_validators(block_identifier: str) -> list[tuple]:
+    """Detects pending validators that are waiting to be approved by Oracle:
+        - Proposal_signature exists, meaning the proposal deposit was processed.
+        - Has lower index than verification_index, meaning its portal_state is PENDING.
+
+    Returns:
+        list[dict]: List of validators with pubkey, portal_index pool_id signature31 withdrawal_credentials, proposal_signature, stake_signature proposal_slot
+    """
+    v_idx: int = get_verification_index(block_identifier)
+    try:
+        with Database() as db:
+            db.execute(
+                """
+                SELECT 
+                    pubkey, 
+                    portal_index,
+                    pool_id,
+                    signature31,
+                    withdrawal_credentials, 
+                    proposal_signature, 
+                    stake_signature,
+                    proposal_slot
+                FROM Validators 
+                WHERE proposal_signature IS NOT NULL,
+                AND portal_index > :verification_index
+                """,
+                {"verification_index": v_idx},
+            )
             return db.fetchall()
     except Exception as e:
         raise DatabaseError(f"Error fetching validators from table Validators") from e

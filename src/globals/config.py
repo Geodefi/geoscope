@@ -22,7 +22,7 @@ def apply_flags(
         AttributeDict: the configuration with the flags applied.
     """
     # TODO: these should be implemented according to the config.json
-    # DONE! but need to check when fixing the commands neverthless. So todo stays.
+    # DONE! but need to check when fixing the commands neverthless. So stays a to-do.
 
     config.dir = flags.main_dir
     config.chain_name = flags.chain

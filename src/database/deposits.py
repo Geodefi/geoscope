@@ -18,7 +18,7 @@ def create_deposits_table() -> None:
                     pubkey TEXT NOT NULL PRIMARY KEY,
                     withdrawal_credentials TEXT NOT NULL,
                     amount TEXT NOT NULL,
-                    signature TEXT NOT NULL, => not needed
+                    signature TEXT NOT NULL,
                     slot INTEGER NOT NULL
                 )
                 """
@@ -62,18 +62,18 @@ def insert_many_deposits(deposits: list[dict]) -> None:
     try:
         with Database() as db:
             db.executemany(
-                "INSERT INTO Deposits VALUES (?,?,?,?,?)",
-                [
-                    (
-                        a["pubkey"],
-                        a["withdrawal_credentials"],
-                        a["amount"],
-                        a["signature"],
-                        a["slot"],
-                    )
-                    for a in deposits
-                ],
+                """
+                INSERT INTO Deposits VALUES (
+                    :pubkey, 
+                    :withdrawal_credentials, 
+                    :amount, 
+                    :signature, 
+                    :slot
+                )
+                """,
+                deposits,
             )
+        get_logger().debug(f"Inserted {len(deposits)} new deposits in Deposits table")
     except Exception as e:
         raise DatabaseError(f"Error inserting many deposits into table Deposits") from e
 

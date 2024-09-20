@@ -10,8 +10,5 @@ def init_constants():
     return AttributeDict.convert_recursive(
         {
             "chain": config.chains[config.chain_name],
-            "hour_blocks": 3600 // int(config.chains[config.chain_name].interval),
-            "one_minute": 60,
-            "one_hour": 3600,
         }
     )

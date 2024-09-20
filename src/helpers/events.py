@@ -9,6 +9,7 @@ from geodefi.utils import multiple_attempt
 
 from src.globals import get_logger, get_constants
 from src.utils.thread import multithread
+from src.utils.list import flatten
 
 
 @multiple_attempt
@@ -59,10 +60,6 @@ def get_all_events(event: ContractEvent, first_block: int, last_block: int) -> I
         get_batch_events, repeat(event), r, repeat(last_block)
     )
 
-    # converts list of list into a list
-    # NOTE if log_batches[batch] is Iterable then unpack batch[log], else continue
-    logs: Iterable[EventData] = [log for batch in log_batches if batch for log in batch]
-
-    # NOTE that the events should be sorted as: blockNumber->transactionIndex->logIndex
+    # Note that the events should be sorted as: blockNumber->transactionIndex->logIndex
     # which persists here, so no need to sort again.
-    return logs
+    return flatten(log_batches)

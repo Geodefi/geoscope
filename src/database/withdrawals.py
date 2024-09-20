@@ -64,17 +64,16 @@ def insert_many_withdrawals(withdrawals: list[dict]) -> None:
     try:
         with Database() as db:
             db.executemany(
-                "INSERT INTO Withdrawals VALUES (?,?,?,?,?)",
-                [
-                    (
-                        a["index"],
-                        a["validator_index"],
-                        a["address"],
-                        a["amount"],
-                        a["slot"],
-                    )
-                    for a in withdrawals
-                ],
+                """
+                INSERT INTO Withdrawals VALUES (
+                    :index
+                    :validator_index
+                    :address
+                    :amount
+                    :slot
+                )
+                """,
+                withdrawals,
             )
     except Exception as e:
         raise DatabaseError(f"Error inserting many withdrawals into table Withdrawals") from e

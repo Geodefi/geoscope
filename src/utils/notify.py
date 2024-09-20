@@ -27,7 +27,7 @@ def send_email(
         will rely on --dont-notify-devs flag, to inform geodefi developers on crashes.
 
     Raises:
-        e: TODO
+        EmailError:  when failed to send an email
     """
     config: AttributeDict = get_config()
 
