@@ -124,7 +124,7 @@ class BeaconTrigger(Trigger):
 
         aliens = []
         if should_verify_validators(slot_number, pending_validators):
-            aliens = verify_validators_batch(pending_validators)
+            aliens = verify_validators_batch(pending_validators, block_identifier=block_number)
 
         new_verification_index: int = max(pending_validators, key=lambda x: x["portal_index"])
 

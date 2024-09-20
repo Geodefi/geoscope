@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from py_ecc.bls import G2ProofOfPossession as bls
+from itertools import repeat
 
 from geodefi.globals import DEPOSIT_SIZE, GENESIS_FORK_VERSION
 from geodefi.utils import to_bytes32
@@ -50,20 +51,22 @@ def validate_signature(signature, pubkey, withdrawal_credentials, fork_version, 
         return False
 
 
-def validate_withdrawal_credentials(withdrawal_credentials: str, pool_id: str) -> bool:
+def validate_withdrawal_credentials(
+    withdrawal_credentials: str, pool_id: str, block_identifier: int
+) -> bool:
     expected = (
         "0x"
         + (
             get_sdk()
             .portal.functions.readBytes(pool_id, to_bytes32("withdrawalCredential"))
-            .call()
+            .call(block_identifier=block_identifier)
             .decode("utf-8")
         ).hex()
     )
     return withdrawal_credentials == expected
 
 
-def verify_validator(validator: tuple) -> int:
+def verify_validator(validator: tuple, block_identifier: int) -> int:
     """Verifies a validator proposal
         1. Validator has only one deposit
             Proven by stake_signature is None:
@@ -91,7 +94,7 @@ def verify_validator(validator: tuple) -> int:
     fork_version = GENESIS_FORK_VERSION[get_config().chain_name]
 
     if stake_signature is None:
-        if validate_withdrawal_credentials(withdrawal_credentials, pool_id):
+        if validate_withdrawal_credentials(withdrawal_credentials, pool_id, block_identifier):
             if validate_signature(
                 proposal_signature,
                 pubkey,
@@ -110,7 +113,7 @@ def verify_validator(validator: tuple) -> int:
     return None
 
 
-def verify_validators_batch(validators: list[tuple]) -> list[str]:
+def verify_validators_batch(validators: list[tuple], block_identifier: int) -> list[str]:
     """_summary_
 
     Args:
@@ -121,7 +124,7 @@ def verify_validators_batch(validators: list[tuple]) -> list[str]:
         list[str]: validator_indices that needs to be alienated.
     """
 
-    aliens = multithread(verify_validator, validators)
+    aliens = multithread(verify_validator, validators, repeat(block_identifier))
 
     # Note that filter also removes 0, '', etc. But, works fine here.
     return filter(None, aliens)
