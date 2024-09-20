@@ -161,6 +161,7 @@ def update_beacon_constants(validators: list[dict]) -> None:
 
                 # Check if stake_signature already exists
                 if db_val["stake_signature"]:
+                    # TODO: send mail here
                     raise DatabaseMismatchError(
                         f"Unexpected deposit: stake_signature already exists for pubkey {pubkey}"
                     )
@@ -233,16 +234,15 @@ def increase_withdrawn_balances(withdrawn_balances: dict):
             # and than increase before setting on db again
 
             validator_indices = withdrawn_balances.keys()
-            balances = []
-            for idx in validator_indices:
-                db.execute(
-                    f"""SELECT validator_index, withdrawn_balance 
-                    FROM Validators 
-                    WHERE validator_index == :validator_index""",
-                    {"validator_index": idx},
-                )
-                balance = db.fetchone()
-                balances.append(balance)
+            placeholders = ",".join("?" * len(validator_indices))
+            db.execute(
+                f"""SELECT beacon_index, withdrawn_balance 
+                FROM Validators 
+                WHERE beacon_index 
+                IN ({placeholders})""",
+                validator_indices,
+            )
+            balances = db.fetchall()
 
             updated_balances = []
             for validator_index, withdrawn_balance in balances:
@@ -258,7 +258,7 @@ def increase_withdrawn_balances(withdrawn_balances: dict):
             db.executemany(
                 """UPDATE Validators 
                     SET withdrawn_balance = :withdrawn_balance
-                    WHERE validator_index = :validator_index
+                    WHERE beacon_index = :validator_index
                 """,
                 updated_balances,
             )
@@ -375,3 +375,22 @@ def detect_proposed_validators(block_identifier: str) -> list[tuple]:
             return db.fetchall()
     except Exception as e:
         raise DatabaseError(f"Error fetching validators from table Validators") from e
+
+
+def fetch_pool_validators(pool_id: str) -> list[str]:
+    """Fetches the pubkeys of the validators in the given pool.
+
+    Args:
+        pool_id (str): The pool id to fetch the validators for.
+
+    Returns:
+        list[str]: List of pubkeys of the validators in the pool.
+    """
+    try:
+        with Database() as db:
+            db.execute("SELECT pubkey FROM Validators WHERE pool_id = ?", (pool_id,))
+            return [x[0] for x in db.fetchall()]
+    except Exception as e:
+        raise DatabaseError(
+            f"Error fetching validators from pool {pool_id} from table Validators"
+        ) from e

@@ -60,7 +60,6 @@ def validate_withdrawal_credentials(
             get_sdk()
             .portal.functions.readBytes(pool_id, to_bytes32("withdrawalCredential"))
             .call(block_identifier=block_identifier)
-            .decode("utf-8")
         ).hex()
     )
     return withdrawal_credentials == expected
@@ -109,8 +108,8 @@ def verify_validator(validator: tuple, block_identifier: int) -> int:
                     fork_version,
                     DEPOSIT_SIZE.STAKE,
                 ):
-                    return portal_index
-    return None
+                    return None
+    return portal_index
 
 
 def verify_validators_batch(validators: list[tuple], block_identifier: int) -> list[str]:

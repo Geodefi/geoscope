@@ -15,7 +15,6 @@ def fetch_slot(slot_number: int) -> dict:
     """
 
     try:
-        # this should be get_sdk().beacon.beacon_blocks for api v2 but does not work for some reason
         slot: dict = get_sdk().beacon.beacon_blocks(slot_number)
         slot_message: dict = slot["message"]
 

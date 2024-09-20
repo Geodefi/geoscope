@@ -186,7 +186,7 @@ def get_pool_data(pool_id: int, block_number: int) -> dict:
     )
 
     # get data from withdrawal contract
-    fulfilledEtherBalance: int = (
+    fulfilled_ether_balance: int = (
         sdk.withdrawal_contract(pool_id)
         .functions.QueueParams()
         .call(block_identifier=block_number)["fulfilledEtherBalance"]
@@ -199,7 +199,7 @@ def get_pool_data(pool_id: int, block_number: int) -> dict:
         "id": str(pool_id),
         "surplus": str(surplus),
         "secured": str(secured),
-        "fulfilled_ether_balance": str(fulfilledEtherBalance),
+        "fulfilled_ether_balance": str(fulfilled_ether_balance),
         "total_supply": str(total_supply),
         "price": str(price),
     }
@@ -211,7 +211,7 @@ def update_all_pools(block_number: int) -> None:
     Args:
         block_number (int): block number to update the pools
     """
-    pool_ids: list[int] = get_all_pool_ids()
+    pool_ids: list[int] = get_all_pool_ids()  # from db
     pools: list[dict] = multithread(get_pool_data, pool_ids, repeat(block_number))
     update_multiple_pools(pools)
 
