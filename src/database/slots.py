@@ -2,7 +2,7 @@
 
 from src.classes import Database
 from src.exceptions.classes.database import DatabaseError, DatabaseMismatchError
-from src.globals import get_logger
+from src.globals import get_logger, get_constants
 
 
 def create_slots_table() -> None:
@@ -78,9 +78,10 @@ def insert_many_slots(gathered_slots: list[dict]) -> None:
         raise DatabaseError(f"Error inserting many slots into table Slots") from e
 
 
-def get_max_slot(fallback_slot: int = 0) -> int:
+def get_max_slot() -> int:
     """Returns the maximum slot number available on the Slots table"""
     try:
+        fallback_slot: int = int(get_constants().chain.start.slot)
         with Database() as db:
             db.execute("SELECT COALESCE(MAX(slot), ?) FROM Slots", (fallback_slot,))
             return db.fetchone()[0]

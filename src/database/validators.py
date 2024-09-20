@@ -329,13 +329,13 @@ def check_beacon_index(idx: int) -> bool:
 
 def fetch_validator_balances() -> list[dict]:
     """Fetches the pubkey and validator balances (beacon and withdrawn) from the database.
-    # TODO: fix this (later)
     Returns:
-        list[dict]: List of validators pubkey, beacon_balance, withdrawn_balance
+        list[dict]: List of pubkey, withdrawn_balance, fee_recipient_balance
     """
+    # TODO: this function is not proper, it might be better to change according to Crash's implementation, later.
     try:
         with Database() as db:
-            db.execute("SELECT pubkey, beacon_balance, withdrawn_balance FROM Validators")
+            db.execute("SELECT pubkey, withdrawn_balance, fee_recipient_balance FROM Validators")
             return db.fetchall()
     except Exception as e:
         raise DatabaseError(f"Error fetching validators from table Validators") from e
