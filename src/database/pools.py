@@ -175,3 +175,30 @@ def get_all_pool_ids() -> list[int]:
             return [int(row[0]) for row in db.fetchall()]
     except Exception as e:
         raise DatabaseError("Error getting all pool ids from table Pools") from e
+
+
+def fetch_timely_pool_data(pool_id: str) -> tuple:
+    """Fetches the timely data of a pool from the database.
+
+    Args:
+        pool_id (str): The pool id to fetch the data for.
+
+    Returns:
+        tuple: The timely data of the pool
+
+    Raises:
+        DatabaseError: Error fetching timely data of pool from table Pools
+    """
+    try:
+        with Database() as db:
+            db.execute(
+                """
+                SELECT fulfilled_ether_balance, secured, surplus, total_supply, price
+                FROM Pools
+                WHERE id = :id
+                """,
+                {"id": pool_id},
+            )
+            return db.fetchone()[0]
+    except Exception as e:
+        raise DatabaseError("Error fetching timely data of pool from table Pools") from e

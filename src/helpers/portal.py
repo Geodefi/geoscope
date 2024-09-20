@@ -39,9 +39,22 @@ def get_verification_index(block_identifier: str) -> int:
             Can be head, latest, finalized etc as well.
 
     Returns:
-        int: VerificationIndex from portal.StakeParams
+        int: VERIFICATION_INDEX from portal.StakeParams
     """
-    return get_StakeParams(block_identifier)[2]
+    return get_StakeParams(block_identifier)[3]
+
+
+def get_oracle_update_timestamp(block_identifier: str) -> int:
+    """Returns the timestamp of the last oracle update.
+
+    Args:
+        block_identifier (int): block height to call the data from.\
+            Can be head, latest, finalized etc as well.
+
+    Returns:
+        int: ORACLE_UPDATE_TIMESTAMP from portal.StakeParams
+    """
+    return get_StakeParams(block_identifier)[8]
 
 
 def get_proposed_pubkeys(first_block, last_block) -> list[str]:
@@ -224,3 +237,32 @@ def update_portal_pools(block_number: int) -> None:
     """
     update_pool_ids(block_number)
     update_all_pools(block_number)
+
+
+def fetch_portal_state(pubkey: str, block_number: int) -> int:
+    """Fetches the portal state of the given pubkey.
+
+    Args:
+        pubkey (str): public key of the validator
+        block_number (int): block number to fetch the data from
+
+    Returns:
+        int: portal state of the pubkey
+    """
+
+    # [0] is the portal state
+    return get_sdk().portal.functions.getValidator(pubkey).call(block_identifier=block_number)[0]
+
+
+def fetch_batch_portal_state(pubkeys: list[str], block_number: int) -> list[int]:
+    """Fetches the portal state of the given pubkeys.
+
+    Args:
+        pubkeys (list[str]): public keys of the validators
+        block_number (int): block number to fetch the data from
+
+    Returns:
+        list[int]: portal state of the pubkeys
+    """
+
+    return multithread(fetch_portal_state, pubkeys, repeat(block_number))

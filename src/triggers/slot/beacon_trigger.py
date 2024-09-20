@@ -10,9 +10,10 @@ from src.database.slots import insert_many_slots, get_max_slot, fetch_block_numb
 from src.database.deposits import insert_many_deposits
 from src.database.withdrawals import insert_many_withdrawals
 from src.database.validators import update_portal_validators, detect_proposed_validators
+from src.database.pools import get_all_pool_ids
 from src.helpers.merkle import (
     should_update_merkle,
-    build_balances_data,
+    build_balances_and_prices,
     prepare_report,
     report_beacon,
 )
@@ -76,9 +77,9 @@ class BeaconTrigger(Trigger):
         gathered_slots: list[dict] = fetch_slots_batch(
             first_slot=db_slot_num, last_slot=curr_slot_num
         )
-        
+
         update_portal_pools(gathered_slots[-1]["block_number"])
-        
+
         update_portal_validators(
             first_block=gathered_slots[0]["block_number"],
             last_block=gathered_slots[-1]["block_number"],
@@ -103,12 +104,14 @@ class BeaconTrigger(Trigger):
         insert_many_slots(gathered_slots)
 
     def process_report_beacon(self, slot_number: int, block_number: int):
-        should_update, prices = should_update_merkle("haha")
+
+        pool_ids: list[int] = get_all_pool_ids()
+        should_update, data = should_update_merkle(pool_ids, block_number)
 
         if should_update:
-            balances: dict = build_balances_data
+            balances, prices = build_balances_and_prices(data)
             price_merkle_root, balance_merkle_root, all_validators_count = prepare_report(
-                prices, balances
+                balances, prices
             )
             report_beacon(price_merkle_root, balance_merkle_root, all_validators_count)
 

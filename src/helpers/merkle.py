@@ -1,31 +1,202 @@
 # -*- coding: utf-8 -*-
 
+from itertools import repeat
 from multiproof import StandardMerkleTree
 from web3.exceptions import ContractLogicError
 
-from src.globals import get_logger
-from src.database.validators import fetch_validator_balances
+from src.utils.thread import multithread
+from src.globals import get_logger, get_sdk
+from src.database.validators import fetch_pool_validators
+from src.database.pools import fetch_timely_pool_data
 from src.actions.multisig import send_tx
+from src.helpers.validators import fetch_validator_balances
+from src.helpers.portal import fetch_batch_portal_state, get_oracle_update_timestamp
 
 
-def should_update_merkle(block_identifier: str) -> tuple[bool, dict]:
+def calculate_fees_and_pending(
+    pubkeys: list[str],
+    validator_statuses: list[str],
+    withdrawn_balances: list[str],
+    pool_fees: list[str],
+    operator_fees: list[str],
+    infrastructure_fees: list[str],
+    last_withdrawns: list[str],
+    block_number: int,
+) -> tuple:
+    """Calculates the fees and pending rewards for a list of validators.
+
+    Args:
+        pubkeys (list[str]): The public keys of the validators.
+        validator_statuses (list[str]): The statuses of the validators.
+        withdrawn_balances (list[str]): The withdrawn balances of the validators.
+        pool_fees (list[str]): The pool fees of the validators.
+        operator_fees (list[str]): The operator fees of the validators.
+        infrastructure_fees (list[str]): The infrastructure fees of the validators.
+        last_withdrawns (list[str]): The last withdrawn balances of the validators.
+        block_number (int): The block number to calculate the fees and pending rewards for.
+
+    Returns:
+        tuple: The fees and pending rewards as a tuple.
+    """
+
+    fees = 0
+    pending = 0
+    possible_pending_pks = []
+
+    for i, validator_status in enumerate(validator_statuses):
+        # since everything in lists are string we need to convert int when need
+        withdrawn_balance = int(withdrawn_balances[i])
+        pool_fee = int(pool_fees[i])
+        operator_fee = int(operator_fees[i])
+        infrastructure_fee = int(infrastructure_fees[i])
+        last_withdrawn = int(last_withdrawns[i])
+
+        if validator_status == "withdrawal_done":
+            fees += (
+                (withdrawn_balance - last_withdrawn)
+                * (pool_fee + operator_fee + infrastructure_fee)
+                / 1e10
+            )
+        else:
+            fees += (withdrawn_balance * (pool_fee + operator_fee + infrastructure_fee)) / 1e10
+
+        if validator_status == "pending_initialized":
+            possible_pending_pks.append(pubkeys[i])
+
+    portal_states = fetch_batch_portal_state(possible_pending_pks, block_number)
+
+    # 32 eth in wei for each pending_initialized and portal state active (2) validator
+    pending = portal_states.count(2) * 32 * 1e18
+
+    return fees, pending
+
+
+def calculate_pool_price(pool_id: int, block_number: int) -> dict:
+    """Calculates the price of a pool and returns it as a dictionary.
+
+    Args:
+        pool_id (str): The pool id to calculate the price for.
+
+    Returns:
+        dict: The price of the pool as a dictionary.
+    """
+    str_pool_id = str(pool_id)
+
+    # get all validators of the pool
+    # fetch fee percentages (pool_fee, operator_fee, infrastructure_fee), withdrawn_balances, last_withdrawns and fee_recepient_balances from validators db
+    # TODO: check if there is a chance for a validators any following values to be Null or None if so we need to handle it
+    validator_data = fetch_pool_validators(str_pool_id)
+    (
+        pubkeys,
+        pool_fees,
+        operator_fees,
+        infrastructure_fees,
+        withdrawn_balances,
+        last_withdrawns,
+        fee_recepient_balances,
+    ) = map(list, zip(*validator_data))
+
+    # TODO: check if is guaranteed that these lists are in the same order with pubkeys
+    #       otherwise we need to return the pubkeys from fetch_pool_validators and use it here to sort the lists
+    validator_statuses, validator_balances = fetch_validator_balances(pubkeys)
+
+    fulfilled_ether_balance, secured, surplus, total_supply, price = fetch_timely_pool_data(
+        str_pool_id
+    )
+
+    fees, pending = calculate_fees_and_pending(
+        pubkeys,
+        validator_statuses,
+        withdrawn_balances,
+        pool_fees,
+        operator_fees,
+        infrastructure_fees,
+        last_withdrawns,
+        block_number,
+    )
+
+    validator_balance = (
+        sum(validator_balances) + sum(withdrawn_balances) + sum(fee_recepient_balances)
+    )
+
+    total_balance = validator_balance - fulfilled_ether_balance - fees + pending + secured + surplus
+
+    new_price = total_balance / total_supply
+
+    return (
+        pool_id,
+        new_price,
+        new_price / price > 1.01,  # if the price increased more than 1% return True else False
+        pubkeys,
+        validator_balances,
+        withdrawn_balances,
+    )
+
+
+def calculate_prices(pool_ids: list[int], block_number: int) -> list[tuple]:
+    """Calculates the prices of pools and returns them as a dictionary.
+
+    Args:
+        block_number (int): The block number to calculate the prices for.
+
+    Returns:
+        dict: The prices of the pools as a dictionary.
+    """
+    return multithread(calculate_pool_price, pool_ids, repeat(block_number))
+
+
+def should_update_merkle(pool_ids: list[int], block_number: int) -> tuple[bool, list[tuple]]:
     """
     Checks the last update on merkle, if a configured! x(24h) amount has surpassed, update.
     Compares every pool for an increase of a configured! y(1) % change.
     Returns false otherwise.
     """
-    return [False, None]
+
+    should_update = False
+
+    last_update_ts: int = get_oracle_update_timestamp(block_number)
+
+    current_ts: int = get_sdk().w3.eth.get_block(block_number).timestamp
+
+    # if 8 hours has passed since the last update, should update the merkle tree
+    if current_ts - last_update_ts > 8 * 60 * 60:
+        should_update = True
+    else:
+        return (False, None)
+
+    data: list[tuple] = calculate_prices(pool_ids, block_number)
+
+    if not should_update:
+        should_update = any(obj[2] for obj in data)
+
+    if should_update:
+        return (True, data)
+    return (False, None)
 
 
-def build_balances_data() -> dict:
-    """_summary_
+def build_balances_and_prices(data: list[tuple]) -> tuple[list, list]:
+    """Builds the balances and prices for the validators.
+
+    Args:
+        data (list[tuple]): The data to build the balances and prices for.
+                            [(pool_id, new_price, price_eligibility, pubkeys, validator_balances, withdrawn_balances), ...]
 
     Returns:
-        dict: _description_
+        tuple(list, list): The balances and prices for the validators.
     """
 
+    prices = []
+    balances = []
 
-def prepare_report(prices: dict, balances: dict) -> tuple[
+    for obj in data:
+        prices.append([obj[0], obj[1]])
+
+    # TODO: build balances list
+
+    return (balances, prices)
+
+
+def prepare_report(balances: list, prices: list) -> tuple[
     int,
     int,
 ]:
@@ -34,26 +205,15 @@ def prepare_report(prices: dict, balances: dict) -> tuple[
     # or if last updatetimestamp from stakeparams is more then 24 hours it will be updated for sure
 
     # ----- pool price related calculations -----
-    pool_prices: dict = {}  # {pool_id: price}
-
-    ids = pool_prices.keys()
-    prices = pool_prices.values()
-    price_merkle_tree = StandardMerkleTree.of([ids, prices], ["uint256", "uint256"])
+    # create merkle tree for pool prices
+    # prices --> [[pool_id, price]...]
+    price_merkle_tree = StandardMerkleTree.of(prices, ["uint256", "uint256"])
     price_merkle_root = price_merkle_tree.root
 
     # ----- validator balances related calculations -----
-
-    # validator_balances = [(pubkey, beacon_balance, withdrawn_balance), ...]
-    validator_balances = fetch_validator_balances()
-
-    # convert to lists
-    pubkeys, beacon_balances, withdrawn_balances = map(list, zip(*validator_balances))
-
     # create merkle tree for validator balances
-    balance_merkle_tree = StandardMerkleTree.of(
-        [pubkeys, beacon_balances, withdrawn_balances], ["bytes", "uint256", "uint256"]
-    )
-
+    # balances --> [[pubkey, balance, withdrawn_balance]...]
+    balance_merkle_tree = StandardMerkleTree.of(balances, ["bytes", "uint256", "uint256"])
     balance_merkle_root = balance_merkle_tree.root
 
     # ----- all validators on chain related calculations -----

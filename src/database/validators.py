@@ -34,6 +34,7 @@ def create_validators_table() -> None:
                     proposal_signature TEXT,
                     proposal_slot INT,
                     withdrawn_balance TEXT,
+                    last_withdrawn TEXT
                     fee_recipient_balance TEXT 
                 )
                 """
@@ -377,19 +378,27 @@ def detect_proposed_validators(block_identifier: str) -> list[tuple]:
         raise DatabaseError(f"Error fetching validators from table Validators") from e
 
 
-def fetch_pool_validators(pool_id: str) -> list[str]:
-    """Fetches the pubkeys of the validators in the given pool.
+def fetch_pool_validators(pool_id: str) -> list[tuple]:
+    """Fetches the pubkeys, pool_fees, operator_fees, infrastructure_fees,
+        withdrawn_balance, last_withdrawns and fee_recipient_balance of the validators in the given pool.
 
     Args:
         pool_id (str): The pool id to fetch the validators for.
 
     Returns:
-        list[str]: List of pubkeys of the validators in the pool.
+        list[tuple]: List of tuples containing the validators data.
     """
     try:
         with Database() as db:
-            db.execute("SELECT pubkey FROM Validators WHERE pool_id = ?", (pool_id,))
-            return [x[0] for x in db.fetchall()]
+            db.execute(
+                """
+                SELECT pubkey, pool_fee, operator_fee, infrastructure_fee, withdrawn_balance, last_withdrawn, fee_recipient_balance
+                FROM Validators
+                WHERE pool_id = :pool_id
+                """,
+                {"pool_id": pool_id},
+            )
+            return db.fetchall()
     except Exception as e:
         raise DatabaseError(
             f"Error fetching validators from pool {pool_id} from table Validators"

@@ -127,3 +127,16 @@ def verify_validators_batch(validators: list[tuple], block_identifier: int) -> l
 
     # Note that filter also removes 0, '', etc. But, works fine here.
     return filter(None, aliens)
+
+
+def fetch_validator_balances(pubkeys: list[str]) -> tuple[list[str], list[int]]:
+    """Fetches the validator balances from the beacon chain.
+    Args:
+        pubkeys (list[str]): The list of pubkeys to fetch the balances for.
+
+    Returns:
+        tuple: The validator statuses and validator balances.
+    """
+
+    # TODO: Implement this function
+    return ([pubkeys], [pubkeys])
