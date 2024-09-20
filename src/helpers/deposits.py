@@ -82,17 +82,11 @@ def process_many_deposits(slot: int, deposits: list[dict]) -> None:
         slot (int): slot to process deposits from
         deposits (list[dict]): list of deposits to process
     """
-    len_deposits: int = len(deposits)
+    # fetch_validators_batch respects the indices.
+    validators: list[dict] = fetch_validators_batch(slot, deposits)
 
-    beacon_step = get_config().chains.beacon.beacon_step
-
-    validators: list[dict] = []
-    for i in range(0, len_deposits, beacon_step):
-        # TODO: need to ensure index is not messed up:
-        # TODO: IT DOES NOT : SDK.beacon_states_validators states "There are no guarantees for the returned data in terms of ordering"
-        batch: list = fetch_validators_batch(slot, len_deposits[i : i + beacon_step]["pubkey"])
-        validators.extend(batch)
+    # Prepare the validators data database:
+    parsed_validators: list[dict] = multithread(__parse_validator_data, deposits, validators)
 
     # Now that we have validators data, update the db:
-    parsed_validators: list[dict] = multithread(__parse_validator_data, deposits, validators)
     update_beacon_constants(parsed_validators)
