@@ -57,6 +57,19 @@ def get_oracle_update_timestamp(block_identifier: str) -> int:
     return get_StakeParams(block_identifier)[8]
 
 
+def get_oracle_address(block_identifier: str) -> str:
+    """Returns the address of the oracle.
+
+    Args:
+        block_identifier (int): block height to call the data from.\
+            Can be head, latest, finalized etc as well.
+
+    Returns:
+        str: ORACLE_ADDRESS from portal.StakeParams
+    """
+    return get_StakeParams(block_identifier)[1]
+
+
 def get_proposed_pubkeys(first_block, last_block) -> list[str]:
     """Get the list of proposed pubkeys by checking the event
         named StakeProposal from Portal, between given block range.

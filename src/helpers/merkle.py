@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+import os
 from itertools import repeat
 from multiproof import StandardMerkleTree
 from web3.exceptions import ContractLogicError
@@ -10,7 +11,12 @@ from src.database.validators import fetch_pool_validators
 from src.database.pools import fetch_timely_pool_data
 from src.actions.multisig import send_tx
 from src.helpers.validators import fetch_validator_balances
-from src.helpers.portal import fetch_batch_portal_state, get_oracle_update_timestamp
+from src.helpers.portal import (
+    fetch_batch_portal_state,
+    get_oracle_update_timestamp,
+    get_oracle_address,
+)
+from src.actions.multisig import get_gnosis
 
 
 def calculate_fees_and_pending(
@@ -158,8 +164,8 @@ def should_update_merkle(pool_ids: list[int], block_number: int) -> tuple[bool, 
 
     current_ts: int = get_sdk().w3.eth.get_block(block_number).timestamp
 
-    # if 8 hours has passed since the last update, should update the merkle tree
-    if current_ts - last_update_ts > 8 * 60 * 60:
+    # if 24 hours has passed since the last update, should update the merkle tree
+    if current_ts - last_update_ts > 86400:  # 24 hours in seconds
         should_update = True
     else:
         return (False, None)
@@ -185,24 +191,28 @@ def build_balances_and_prices(data: list[tuple]) -> tuple[list, list]:
         tuple(list, list): The balances and prices for the validators.
     """
 
-    prices = []
-    balances = []
+    prices = [[pool_id, new_price] for pool_id, new_price, *_ in data]
+    balances = [
+        [pubkey, validator_balance, withdrawn_balance]
+        for *_, pubkeys, validator_balances, withdrawn_balances in data
+        for pubkey, validator_balance, withdrawn_balance in zip(
+            pubkeys, validator_balances, withdrawn_balances
+        )
+    ]
 
-    for obj in data:
-        prices.append([obj[0], obj[1]])
-
-    # TODO: build balances list
-
-    return (balances, prices)
+    return prices, balances
 
 
-def prepare_report(balances: list, prices: list) -> tuple[
-    int,
-    int,
-]:
-    """_summary_"""
-    # TODO: calculate prices and check how much it changed (it its more then 1% any price, can check from chain)
-    # or if last updatetimestamp from stakeparams is more then 24 hours it will be updated for sure
+def prepare_report(balances: list, prices: list) -> tuple[str, str, int]:
+    """Prepares the report for the balances and prices.
+
+    Args:
+        balances (list): The balances to prepare the report for.
+        prices (list): The prices to prepare the report for.
+
+    Returns:
+        tuple: The report for the balances and prices.
+    """
 
     # ----- pool price related calculations -----
     # create merkle tree for pool prices
@@ -218,54 +228,101 @@ def prepare_report(balances: list, prices: list) -> tuple[
 
     # ----- all validators on chain related calculations -----
 
-    # TODO: get the count of all validators on chain
-    # ! for now we will send a fixed number, lets say 1m or someting like that.
-    all_val_count = 50_000  # we can fetch if from oklink, but need to discuss this
+    # NOTE: !!! for now we will send a fixed number, lets say 1m or someting like that.
+    all_val_count = 1_000_000_000  # we can fetch if from oklink, but need to discuss this
     if all_val_count < 50_000:
         all_val_count = 50_000  # minimum count for the merkle tree
 
-    # ----- send tx to multisig to update chain -----
-    # ! This should be in actions/portal: check update_merkle
+    return (balance_merkle_root, price_merkle_root, all_val_count)
+
+
+# TODO: this function may be combined with multisig get_caller_data function or that one can be used here
+def is_oracle_owner(block_number: int) -> bool:
+    """Checks if the oracle is the owner.
+
+    Returns:
+        bool: True if the oracle is the owner, False otherwise.
+    """
+
+    private_key = os.getenv("GEOSCOPE_PRIVATE_KEY")
+    if private_key is None:
+        raise Exception("GEOSCOPE_PRIVATE_KEY is not set.")
 
     try:
-        success, tx_receipt = send_tx(
-            contract_address="0xcA69bA533810ee94b7649c57eF8aB22EBbE0bbf7",  # Portal contract address
-            method_id="0xdf1ff929",  # reportBeacon function signature
-            param_types=["bytes32", "bytes32", "uint256"],
-            param_args=[price_merkle_root, balance_merkle_root, all_val_count],
-        )
-
-        if success:
-            get_logger().info(
-                f"Successfully sent transaction: {dict(tx_receipt)['transactionHash'].hex()}"
-            )
-        else:
-            # TODO: decide how to handle error
-            get_logger().error(
-                f"Failed to send transaction (reverted): {dict(tx_receipt)['transactionHash'].hex()}"
-            )
-    except ContractLogicError as e:
-        # TODO: decide how to handle exception
-        get_logger().error(f"Contract logic error: {str(e)}")
+        address = get_sdk().w3.eth.account.from_key(private_key).address
     except Exception as e:
-        # TODO: decide how to handle exception
-        get_logger().error(f"Error sending transaction: {str(e)}")
+        raise Exception("Invalid GEOSCOPE_PRIVATE_KEY") from e
+
+    if not get_sdk().w3.is_checksum_address(address):
+        address = get_sdk().w3.to_checksum_address(address)
+
+    oracle_address = get_oracle_address(block_number)
+
+    if not get_sdk().w3.is_checksum_address(oracle_address):
+        oracle_address = get_sdk().w3.to_checksum_address(oracle_address)
+
+    return address == oracle_address
+
+
+def report_beacon(
+    price_merkle_root: str, balance_merkle_root: str, all_validators_count: int, block_number: int
+) -> None:
+    """Reports the beacon.
+
+    Args:
+        price_merkle_root (str): The price merkle root.
+        balance_merkle_root (str): The balance merkle root.
+        all_validators_count (int): The all validators count.
+        block_number (int): The block number to report the beacon for.
+    """
+
+    ## oracle is the owner's address -> if no multisig -> call portal
+    ## oracle is not provided address -> if one address on multisig -> call multisig
+    ##                                -> multiple addresses on multisig -> call watcher
+
+    try:
+        gnosis_contract = get_gnosis()
+        owners = gnosis_contract.functions.getOwners().call()
+    except:
+        owners = None
+
+    if is_oracle_owner(block_number) and owners is None:
+        # call portal
+        try:
+            success, tx_receipt = send_tx(
+                contract_address="0xcA69bA533810ee94b7649c57eF8aB22EBbE0bbf7",  # Portal contract address
+                method_id="0xdf1ff929",  # reportBeacon function signature
+                param_types=["bytes32", "bytes32", "uint256"],
+                param_args=[price_merkle_root, balance_merkle_root, all_validators_count],
+            )
+
+            if success:
+                get_logger().info(
+                    f"Successfully sent transaction: {dict(tx_receipt)['transactionHash'].hex()}"
+                )
+            else:
+                # TODO: decide how to handle error
+                get_logger().error(
+                    f"Failed to send transaction (reverted): {dict(tx_receipt)['transactionHash'].hex()}"
+                )
+        except ContractLogicError as e:
+            # TODO: decide how to handle exception
+            get_logger().error(f"Contract logic error: {str(e)}")
+        except Exception as e:
+            # TODO: decide how to handle exception
+            get_logger().error(f"Error sending transaction: {str(e)}")
+    elif owners is None:
+        raise Exception("Cannot find the Gnosis Safe contract.")
+    elif len(owners) == 1:
+        # TODO: call multisig
+        pass
+    elif len(owners) > 1:
+        # TODO: call watcher
+        pass
+    else:
+        raise Exception("Some error occurred. Please contact the Geodefi Team.")
 
     # TODO: send post request to backend to update the chain
     # if state is active and balance less than 16, it is a problem, raise error and exit
 
     # ----- update backend -----
-    return None, None, None
-
-
-def report_beacon(price_merkle_root: str, balance_merkle_root: str, all_validators_count: int):
-    """_summary_"""
-    ## oracle is the owner's address -> if no multisig -> call portal
-    ## oracle is not provided address -> if one address on multisig -> call multisig
-    ##                                -> multiple addresses on multisig -> call watcher
-
-    # reportBeacon(
-    #     bytes32 priceMerkleRoot,
-    #     bytes32 balanceMerkleRoot,
-    #     uint256 allValidatorsCount
-    # )

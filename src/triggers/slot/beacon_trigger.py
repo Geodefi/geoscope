@@ -104,16 +104,19 @@ class BeaconTrigger(Trigger):
         insert_many_slots(gathered_slots)
 
     def process_report_beacon(self, slot_number: int, block_number: int):
+        # TODO: check why slot_number is not used in the function? If not needed, remove it.
 
         pool_ids: list[int] = get_all_pool_ids()
         should_update, data = should_update_merkle(pool_ids, block_number)
 
         if should_update:
             balances, prices = build_balances_and_prices(data)
-            price_merkle_root, balance_merkle_root, all_validators_count = prepare_report(
+            balance_merkle_root, price_merkle_root, all_validators_count = prepare_report(
                 balances, prices
             )
-            report_beacon(price_merkle_root, balance_merkle_root, all_validators_count)
+            report_beacon(
+                price_merkle_root, balance_merkle_root, all_validators_count, block_number
+            )
 
     def process_verifications(self, slot_number: int, block_number: int):
         """
