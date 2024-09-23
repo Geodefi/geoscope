@@ -231,6 +231,7 @@ def prepare_report(balances: list, prices: list) -> tuple[str, str, int]:
     # NOTE: !!! for now we will send a fixed number, lets say 1m or someting like that.
     all_val_count = 1_000_000_000  # we can fetch if from oklink, but need to discuss this
     if all_val_count < 50_000:
+        # TODO: this should raise instead.
         all_val_count = 50_000  # minimum count for the merkle tree
 
     return (balance_merkle_root, price_merkle_root, all_val_count)
@@ -280,6 +281,7 @@ def report_beacon(
     ## oracle is not provided address -> if one address on multisig -> call multisig
     ##                                -> multiple addresses on multisig -> call watcher
 
+    # TODO : this function does not belong here.
     try:
         gnosis_contract = get_gnosis()
         owners = gnosis_contract.functions.getOwners().call()
