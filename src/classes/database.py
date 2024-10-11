@@ -30,7 +30,7 @@ class Database:
         DatabaseError: Error while connecting to the database.
     """
 
-    db_name: str = "operator"
+    db_name: str = get_config().chain_name
     db_ext: str = ".db"
 
     def __init__(self, db_name: str = db_name) -> None:
