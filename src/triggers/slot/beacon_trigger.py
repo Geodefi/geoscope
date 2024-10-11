@@ -9,10 +9,14 @@ from src.helpers.portal import update_portal_pools
 from src.database.slots import insert_many_slots, get_max_slot, fetch_block_number
 from src.database.deposits import insert_many_deposits
 from src.database.withdrawals import insert_many_withdrawals
-from src.database.validators import update_portal_validators, detect_proposed_validators
+from src.database.validators import (
+    update_portal_validators,
+    detect_proposed_validators,
+)
 from src.database.pools import get_all_pool_ids
 from src.helpers.merkle import gather_merkle_data, prepare_report, report_beacon
 from src.helpers.validators import should_verify_validators, verify_validators_batch
+from src.helpers.fee_recipient import process_fee_recipients
 
 
 class BeaconTrigger(Trigger):
@@ -90,13 +94,14 @@ class BeaconTrigger(Trigger):
             process_many_withdrawals(withdrawals)
             insert_many_withdrawals(withdrawals)
 
-        # TODO: process slots and update fee_recipient balances here...
-        # Note that when we are sending the merkle roots, we include it in withdrawn_balance
-
         # Since we are getting the latest processed slot here,
         # we should actually **SAVE** it at the last point where we are done
-        # processing the validators, deposits and withdrawals.
+        # processing the validators, deposits and withdrawals:
         insert_many_slots(gathered_slots)
+
+        # After processing the changes on validators and inserting the slots
+        # we will process the fee_recipients:
+        process_fee_recipients(db_slot_num)
 
     def process_report_beacon(self, slot_number: int, block_number: int):
 

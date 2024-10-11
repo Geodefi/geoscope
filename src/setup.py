@@ -41,6 +41,7 @@ def preflight_checks(test_email: bool = False):
     """
     config = get_config()
 
+    # TODO: --reset, --hard-reset: reconstructs validator, pool, etc. data from slots.
     # Sections
     if not "chains" in config:
         raise MissingConfigurationError("'chains' section on config.json is missing or empty.")

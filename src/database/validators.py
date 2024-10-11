@@ -215,7 +215,8 @@ def update_beacon_constants(validators: list[dict]) -> None:
 
 
 def increase_withdrawn_balances(withdrawn_balances: dict):
-    """_summary_
+    """Increases the withdrawn_balance field for the given validators.
+
 
     Args:
         withdrawn_balances (dict): {validator_index: amount},\
@@ -265,6 +266,62 @@ def increase_withdrawn_balances(withdrawn_balances: dict):
 
     except Exception as e:
         raise DatabaseError(f"Error updating withdrawn balances for on table Validators") from e
+
+
+def increase_fee_recipient_balances(fee_recipient_balances: dict):
+    """Increases the fee_recipient_balance field for the given validators.
+
+    Args:
+        fee_recipient_balances (dict): {validator_index: amount},
+            validator indices mapped to fee recipient amount to be processed.
+
+    Raises:
+        DatabaseError: Error updating fee recipient balances of validators.
+    """
+
+    try:
+        with Database() as db:
+            # Fetch the current fee_recipient_balance from the Validators table
+            validator_indices = fee_recipient_balances.keys()
+            placeholders = ",".join("?" * len(validator_indices))
+            db.execute(
+                f"""SELECT beacon_index, fee_recipient_balance 
+                FROM Validators 
+                WHERE beacon_index 
+                IN ({placeholders})""",
+                validator_indices,
+            )
+            balances = db.fetchall()
+
+            updated_balances = []
+            for validator_index, fee_recipient_balance in balances:
+                # Sum the new fee_recipient_balance with the existing one
+                new_balance = int(fee_recipient_balances[validator_index]) + int(
+                    fee_recipient_balance
+                )
+
+                updated_balances.append(
+                    {
+                        "validator_index": validator_index,
+                        "fee_recipient_balance": str(new_balance),
+                    }
+                )
+
+            # Update the Validators table with the new fee_recipient_balance
+            db.executemany(
+                """UPDATE Validators 
+                    SET fee_recipient_balance = :fee_recipient_balance
+                    WHERE beacon_index = :validator_index
+                """,
+                updated_balances,
+            )
+
+        get_logger().debug(
+            f"Updated fee recipient balances for {len(fee_recipient_balances)} validators"
+        )
+
+    except Exception as e:
+        raise DatabaseError(f"Error updating fee recipient balances in table Validators") from e
 
 
 def check_pubkey(pubkey: str) -> bool:
@@ -400,4 +457,22 @@ def fetch_validators_by_pool(pool_id: str) -> list[tuple]:
     except Exception as e:
         raise DatabaseError(
             f"Error fetching validators from pool {pool_id} from table Validators"
+        ) from e
+
+
+def fetch_operator_id_by_beacon_index(beacon_index) -> int:
+    try:
+        with Database() as db:
+            db.execute(
+                """
+                    SELECT operator_id
+                    FROM Validators
+                    WHERE beacon_index = :beacon_index
+                    """,
+                {"beacon_index": beacon_index},
+            )
+            return db.fetchall()
+    except Exception as e:
+        raise DatabaseError(
+            f"Error fetching operator_id with index {beacon_index} from table Validators"
         ) from e

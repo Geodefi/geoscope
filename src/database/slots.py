@@ -21,6 +21,7 @@ def create_slots_table() -> None:
                     block_number INTEGER UNIQUE,
                     proposer_index INTEGER,
                     fee_recipient TEXT,
+                    burned_amount TEXT,
                 )
                 """
             )
@@ -70,6 +71,7 @@ def insert_many_slots(gathered_slots: list[dict]) -> None:
                     :block_number,
                     :proposer_index,
                     :fee_recipient,
+                    :burned_amount,
                 )
                 """,
                 gathered_slots,
@@ -114,3 +116,28 @@ def fetch_block_number(slot: int) -> int:
             return False
     except Exception as e:
         raise DatabaseError(f"Error fetching block_number from table Slots") from e
+
+
+def filter_by_proposer(slot: int) -> list[tuple]:
+    """Returns the fee proposer_index, block_number, fee_recipient, burned_amount and also expected fee_recipient
+    which corresponds to Validators' Pool' withdrawal_contract_address.
+    for slots that are proposed by our validators.
+
+    Args:
+        slot (int): minimum slot number to be taken into the consideration.
+    """
+    try:
+        with Database() as db:
+            db.execute(
+                """
+                SELECT proposer_index, block_number, fee_recipient, burned_amount, Pools.withdrawal_contract_address
+                FROM Slots
+                INNER JOIN Validators ON Slots.proposer_index = Validators.beacon_index
+                INNER JOIN Pools ON Validators.pool_id = Pools.id
+                WHERE Slots.slot > ?;
+                """,
+                (slot,),
+            )
+            return db.fetchall()
+    except Exception as e:
+        raise DatabaseError(f"Error getting the max slot number from table Slots") from e
