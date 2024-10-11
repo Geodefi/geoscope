@@ -15,7 +15,7 @@ from geodefi.globals.constants import ZERO_ADDRESS
 from src.globals import get_sdk, get_logger, get_config
 from src.exceptions import ContractCreationError
 
-# Many of these are displaced.
+# TODO: Many of these are displaced.
 
 
 def get_caller_data():

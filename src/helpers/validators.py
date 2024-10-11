@@ -48,10 +48,7 @@ def validate_signature(signature, pubkey, withdrawal_credentials, fork_version, 
     domain = compute_deposit_domain(fork_version)
     signing_root = compute_signing_root(deposit_message, domain)
 
-    if bls.Verify(pubkey, signing_root, signature):
-        return True
-    else:
-        return False
+    return bls.Verify(pubkey, signing_root, signature)
 
 
 def validate_withdrawal_credentials(
@@ -95,24 +92,31 @@ def verify_validator(validator: tuple, block_identifier: int) -> int:
     # proposal_slot = validator[7]
     fork_version = GENESIS_FORK_VERSION[get_config().chain_name]
 
-    if stake_signature is None:
-        if validate_withdrawal_credentials(withdrawal_credentials, pool_id, block_identifier):
-            if validate_signature(
-                proposal_signature,
-                pubkey,
-                withdrawal_credentials,
-                fork_version,
-                DEPOSIT_SIZE.PROPOSAL,
-            ):
-                if validate_signature(
-                    signature31,
-                    pubkey,
-                    withdrawal_credentials,
-                    fork_version,
-                    DEPOSIT_SIZE.STAKE,
-                ):
-                    return None
-    return portal_index
+    if stake_signature:
+        return portal_index
+
+    if not validate_withdrawal_credentials(withdrawal_credentials, pool_id, block_identifier):
+        return portal_index
+
+    if not validate_signature(
+        proposal_signature,
+        pubkey,
+        withdrawal_credentials,
+        fork_version,
+        DEPOSIT_SIZE.PROPOSAL,
+    ):
+        return portal_index
+
+    if not validate_signature(
+        signature31,
+        pubkey,
+        withdrawal_credentials,
+        fork_version,
+        DEPOSIT_SIZE.STAKE,
+    ):
+        return portal_index
+
+    return None
 
 
 def verify_validators_batch(validators: list[tuple], block_identifier: int) -> list[str]:

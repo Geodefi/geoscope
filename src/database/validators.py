@@ -15,7 +15,6 @@ def create_validators_table() -> None:
 
     try:
         with Database() as db:
-            # TODO: not sure how to calculate the fee_recipient_balance
             db.execute(
                 """
                 CREATE TABLE IF NOT EXISTS Validators (
@@ -177,8 +176,8 @@ def update_beacon_constants(validators: list[dict]) -> None:
                     # Add to batch for updating other fields
                     update_fields_batch.append(
                         {
-                            "proposal_signature": validator["proposal_signature"],
-                            "proposal_slot": validator["proposal_slot"],
+                            "signature": validator["proposal_signature"],
+                            "slot": validator["proposal_slot"],
                             "pubkey": validator["pubkey"],
                             "beacon_index": validator["beacon_index"],
                             "withdrawal_credentials": validator["withdrawal_credentials"],
@@ -190,7 +189,7 @@ def update_beacon_constants(validators: list[dict]) -> None:
             if update_stake_signature_batch:
                 db.executemany(
                     """UPDATE Validators 
-                    SET stake_signature = :signature
+                    SET stake_signature = :stake_signature
                     WHERE pubkey = :pubkey
                     """,
                     update_stake_signature_batch,
@@ -200,9 +199,8 @@ def update_beacon_constants(validators: list[dict]) -> None:
             if update_fields_batch:
                 db.executemany(
                     """UPDATE Validators 
-                    SET proposal_signature = :signature,
-                        proposal_slot = :slot,
-                        pubkey = :pubkey,
+                    SET proposal_signature = :proposal_signature,
+                        proposal_slot = :proposal_slot,
                         beacon_index = :beacon_index,
                         withdrawal_credentials = :withdrawal_credentials,
                         exit_epoch = :exit_epoch
