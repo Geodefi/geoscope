@@ -1,14 +1,17 @@
 # -*- coding: utf-8 -*-
-from py_ecc.bls import G2ProofOfPossession as bls
 from itertools import repeat
+from typing import Iterator
+from py_ecc.bls import G2ProofOfPossession as bls
 
 from geodefi.globals import DEPOSIT_SIZE, GENESIS_FORK_VERSION
 from geodefi.utils import to_bytes32
 
 from src.utils.thread import multithread
 from src.globals import get_constants, get_config, get_sdk
+from src.helpers.beacon import fetch_validators_batch
 
 from src.utils.bls import DepositMessage, compute_deposit_domain, compute_signing_root
+from src.database.validators import fetch_validators_by_pool
 
 
 def should_verify_validators(slot: int, validators: list[tuple]) -> bool:
@@ -129,14 +132,28 @@ def verify_validators_batch(validators: list[tuple], block_identifier: int) -> l
     return filter(None, aliens)
 
 
-def fetch_validator_balances(pubkeys: list[str]) -> tuple[list[str], list[int]]:
-    """Fetches the validator balances from the beacon chain.
+def fetch_beacon_data(pubkey_iterator: Iterator, slot: int) -> Iterator[tuple]:
+    """beacon_balance,beacon_status"""
+
+    vals = fetch_validators_batch(slot, pubkey_iterator)
+
+    return ((val["balance"], val["status"]) for val in vals)
+
+
+def gather_validator_data_by_pool(pool_id: str, slot: int) -> list[tuple]:
+    """pubkey, pool_fee, operator_fee, infrastructure_fee, withdrawn_balance, last_withdrawn, fee_recipient_balance, beacon_balance, beacon_status
+
     Args:
-        pubkeys (list[str]): The list of pubkeys to fetch the balances for.
-
-    Returns:
-        tuple: The validator statuses and validator balances.
+        pool_id (str): _description_
     """
+    validators_db_data: list[tuple] = fetch_validators_by_pool(pool_id)
 
-    # TODO: Implement this function
-    return ([pubkeys], [pubkeys])
+    pubkey_iterator: Iterator = (val[0] for val in validators_db_data)
+    validators_beacon_data: Iterator[tuple] = fetch_beacon_data(pubkey_iterator, slot)
+
+    merged_validator_data = [
+        db_tuple + beacon_tuple
+        for db_tuple, beacon_tuple in zip(validators_db_data, validators_beacon_data)
+    ]
+
+    return merged_validator_data

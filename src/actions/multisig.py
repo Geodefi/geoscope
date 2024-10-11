@@ -15,6 +15,8 @@ from geodefi.globals.constants import ZERO_ADDRESS
 from src.globals import get_sdk, get_logger, get_config
 from src.exceptions import ContractCreationError
 
+# Many of these are displaced.
+
 
 def get_caller_data():
     """
@@ -33,15 +35,14 @@ def get_caller_data():
     except Exception as e:
         raise Exception("Invalid GEOSCOPE_PRIVATE_KEY") from e
 
-    if not get_sdk().w3.is_checksum_address(address):
-        address = get_sdk().w3.to_checksum_address(address)
+    address = get_sdk().w3.to_checksum_address(address)
 
     nonce = get_sdk().w3.eth.get_transaction_count(address)
 
     return private_key, address, nonce
 
 
-def get_gnosis() -> Contract:
+def get_gnosis_safe(oracle_address: str) -> Contract:
     """
     Gets the Gnosis Safe contract instance.
 
@@ -50,32 +51,16 @@ def get_gnosis() -> Contract:
     """
 
     gnosis_abi_path = os.path.join(
+        "src",
         "assets",
         "gnosis.json",
     )
 
-    # Get ABI
-    with open(gnosis_abi_path, "r", encoding="utf8") as file:
-        a = file.read()
-    abi = json.loads(a)
+    # TODO: this should be done at the initiation...
+    with open(gnosis_abi_path, encoding="utf8") as gnosis_file:
+        gnosis_abi = json.load(gnosis_file)
 
-    try:
-        address = abi["address"]
-        if not get_sdk().w3.is_checksum_address(address):
-            address = get_sdk().w3.to_checksum_address(address)
-
-        safe_address: ChecksumAddress = address
-        abi = abi["abi"]
-
-    except KeyError as e:
-        raise ContractCreationError(
-            "GeodeFinance: Please provide correct Gnosis abi and contract address in abi/.json"
-        ) from e
-
-    try:
-        return get_sdk().w3.eth.contract(abi=abi, address=safe_address)
-    except Exception as e:
-        raise ContractCreationError("GeodeFinance: Gnosis- Invalid ABI or Contract Address") from e
+    return get_sdk().w3.eth.contract(abi=gnosis_abi, address=oracle_address)
 
 
 def get_nonce(gnosis_contract: Contract) -> int:
@@ -196,6 +181,17 @@ def exec_transaction(
         return 0, tx_receipt
 
 
+def get_encoded_data(
+    method_id: str,
+    param_types: List[str],
+    param_args: List[Any],
+):
+    assert len(param_types) == len(param_args), "The types and args must have same length."
+    # assert is_encodable(param_types, param_args), "The types and args are not encodable."
+
+    return method_id + encode(param_types, param_args).hex()
+
+
 def send_tx(
     contract_address: ChecksumAddress,
     method_id: str,
@@ -214,13 +210,9 @@ def send_tx(
     Returns:
         Tuple[int, Any]: A tuple containing the success status and the transaction receipt.
     """
+    encoded_data = get_encoded_data(method_id, param_types, param_args)
 
-    assert len(param_types) == len(param_args), "The types and args must have same length."
-    assert is_encodable(param_types, param_args), "The types and args are not encodable."
-
-    encoded_data = method_id + encode(param_types, param_args).hex()
-
-    gnosis_contract = get_gnosis()
+    gnosis_contract = get_gnosis_safe("lol")
     # get Nonce
     safe_nonce = get_nonce(gnosis_contract)
     get_logger().debug(f"Nonce of Gnosis Safe is {safe_nonce}.")

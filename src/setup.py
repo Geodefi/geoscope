@@ -152,8 +152,6 @@ def setup(**kwargs):
     config = apply_flags(init_config(flags.main_dir), flags)
     set_config(config)
 
-    set_constants(init_constants())
-
     logger: Loggable = Loggable()
     set_logger(logger)
 
@@ -166,6 +164,9 @@ def setup(**kwargs):
     )
 
     preflight_checks(test_email=kwargs["test_email"])
+
+    # update constants
+    set_constants(init_constants())
 
 
 def init_dbs(reset: bool = False):

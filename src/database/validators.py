@@ -378,7 +378,7 @@ def detect_proposed_validators(block_identifier: str) -> list[tuple]:
         raise DatabaseError(f"Error fetching validators from table Validators") from e
 
 
-def fetch_pool_validators(pool_id: str) -> list[tuple]:
+def fetch_validators_by_pool(pool_id: str) -> list[tuple]:
     """Fetches the pubkeys, pool_fees, operator_fees, infrastructure_fees,
         withdrawn_balance, last_withdrawns and fee_recipient_balance of the validators in the given pool.
 

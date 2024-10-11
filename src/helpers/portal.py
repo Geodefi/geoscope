@@ -6,8 +6,12 @@ from itertools import repeat
 from typing import Iterable
 from geodefi import Geode
 from geodefi.globals import ID_TYPE
-from geodefi.utils import to_bytes32
+from geodefi.utils import get_contract_abi, to_bytes32
+from geodefi.globals import Network
+
+from web3 import Web3
 from web3.types import EventData
+from web3.contract import Contract
 from web3.contract.contract import ContractEvent
 
 from src.utils.thread import multithread
@@ -15,10 +19,13 @@ from src.globals import get_logger, get_sdk
 from src.helpers.events import get_all_events
 from src.database.pools import (
     pool_count,
-    insert_many_pools,
+    insert_many_pools_info,
     get_all_pool_ids,
-    update_multiple_pools,
+    update_many_pools_data,
 )
+from src.database.pools import fetch_withdrawal_contract_address
+
+# TODO: feels like sdk w3 is displaced? There should be a global web3 instance, we should not be moving it around and giving it to self.
 
 
 def get_StakeParams(block_identifier: str) -> list:
@@ -57,7 +64,7 @@ def get_oracle_update_timestamp(block_identifier: str) -> int:
     return get_StakeParams(block_identifier)[8]
 
 
-def get_oracle_address(block_identifier: str) -> str:
+def get_oracle_address(block_identifier: str = "finalized") -> str:
     """Returns the address of the oracle.
 
     Args:
@@ -168,6 +175,7 @@ def get_pool_info(pool_index: int, block_number: int) -> dict:
         "id": str(pool_id),
         "name": pool.NAME,
         "withdrawal_contract_address": pool.withdrawalContract,
+        "withdrawal_credentials": pool.withdrawalCredential,
     }
 
 
@@ -189,7 +197,31 @@ def update_pool_ids(block_number: int) -> None:
         pools: list[dict] = multithread(
             get_pool_info, range(number_of_pools, portal_pool_count), repeat(block_number)
         )
-        insert_many_pools(pools)
+        insert_many_pools_info(pools)
+
+
+# TODO: this feels like it should be in sdk...
+def get_withdrawal_contract(pool_id: int) -> Contract:
+    sdk: Geode = get_sdk()
+    w3: Web3 = sdk.portal.w3
+    network: Network = sdk.portal.network
+
+    address = fetch_withdrawal_contract_address(pool_id)
+
+    _, wp_abi = get_contract_abi(network=network, kind="package", name="WithdrawalPackage")
+    contract: Contract = sdk.portal.w3.eth.contract(
+        address=w3.to_checksum_address(address), abi=wp_abi
+    )
+
+    return contract
+
+
+def get_fulfilled_ether_balance(pool_id: int, block_number: int) -> int:
+    return int(
+        get_withdrawal_contract(pool_id)
+        .functions.QueueParams()
+        .call(block_identifier=block_number)["fulfilledEtherBalance"]
+    )
 
 
 def get_pool_data(pool_id: int, block_number: int) -> dict:
@@ -212,11 +244,8 @@ def get_pool_data(pool_id: int, block_number: int) -> dict:
     )
 
     # get data from withdrawal contract
-    fulfilled_ether_balance: int = (
-        sdk.withdrawal_contract(pool_id)
-        .functions.QueueParams()
-        .call(block_identifier=block_number)["fulfilledEtherBalance"]
-    )
+    # TODO: What is this_?
+    fulfilled_ether_balance: int = get_fulfilled_ether_balance(pool_id, block_number)
 
     # get data from gETH
     total_supply: int = sdk.gETH.totalSupply(pool_id).call(block_identifier=block_number)
@@ -239,7 +268,7 @@ def update_all_pools(block_number: int) -> None:
     """
     pool_ids: list[int] = get_all_pool_ids()  # from db
     pools: list[dict] = multithread(get_pool_data, pool_ids, repeat(block_number))
-    update_multiple_pools(pools)
+    update_many_pools_data(pools)
 
 
 def update_portal_pools(block_number: int) -> None:

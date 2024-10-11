@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-
+from typing import Iterator
 from src.classes import Trigger
 from src.helpers.slots import fetch_slots_batch
 from src.helpers.withdrawals import filter_withdrawals_batch, process_many_withdrawals
@@ -11,12 +11,7 @@ from src.database.deposits import insert_many_deposits
 from src.database.withdrawals import insert_many_withdrawals
 from src.database.validators import update_portal_validators, detect_proposed_validators
 from src.database.pools import get_all_pool_ids
-from src.helpers.merkle import (
-    should_update_merkle,
-    build_balances_and_prices,
-    prepare_report,
-    report_beacon,
-)
+from src.helpers.merkle import gather_merkle_data, prepare_report, report_beacon
 from src.helpers.validators import should_verify_validators, verify_validators_batch
 
 
@@ -104,15 +99,18 @@ class BeaconTrigger(Trigger):
         insert_many_slots(gathered_slots)
 
     def process_report_beacon(self, slot_number: int, block_number: int):
-        # TODO: check why slot_number is not used in the function? If not needed, remove it.
 
         pool_ids: list[int] = get_all_pool_ids()
-        should_update, data = should_update_merkle(pool_ids, block_number)
+        should_update, prices_data = gather_merkle_data(pool_ids, block_number, slot=slot_number)
 
         if should_update:
-            balances, prices = build_balances_and_prices(data)
-            balance_merkle_root, price_merkle_root, all_validators_count = prepare_report(
-                balances, prices
+            price_iterator: Iterator = ([pool[0], pool[1]] for pool in prices_data)
+            balance_iterator: Iterator = (
+                [val[0], val[7], val[4] + val[6]] for pool in prices_data for val in pool[2]
+            )
+
+            price_merkle_root, balance_merkle_root, all_validators_count = prepare_report(
+                balance_iterator, price_iterator
             )
             report_beacon(
                 price_merkle_root, balance_merkle_root, all_validators_count, block_number

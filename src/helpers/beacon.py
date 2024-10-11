@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-
+from typing import Iterator
 from itertools import repeat
 from src.globals import get_sdk
 from src.utils.thread import multithread
@@ -18,7 +18,7 @@ from src.utils.thread import multithread
 #     return (url, True)
 
 
-def fetch_validators_batch(slot: int, validators: list) -> list[dict]:
+def fetch_validators_batch(slot: int, validators: Iterator) -> list[dict]:
     """Fetch batch info for the validators from beacon chain for a given slot.
 
     Args:

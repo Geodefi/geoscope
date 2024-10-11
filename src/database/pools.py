@@ -18,6 +18,7 @@ def create_pools_table() -> None:
                 CREATE TABLE IF NOT EXISTS Pools (
                     id TEXT NOT NULL PRIMARY KEY,
                     name TEXT NOT NULL,
+                    withdrawal_contract_address TEXT NOT NULL,
                     withdrawal_credentials TEXT NOT NULL,
                     price TEXT,
                     total_supply TEXT,
@@ -52,7 +53,7 @@ def reinitialize_pools_table() -> None:
     create_pools_table()
 
 
-def insert_many_pools(pools: list[dict]) -> None:
+def insert_many_pools_info(pools: list[dict]) -> None:
     """
     Inserts multiple pool records into the Pools table.
 
@@ -66,21 +67,8 @@ def insert_many_pools(pools: list[dict]) -> None:
         with Database() as db:
             db.executemany(
                 """
-
-                INSERT INTO Pools VALUES (
-                    :id,
-                    :name,
-                    :price,
-                    :totalSupply,
-                    :withdrawal_credentials,
-                    :surplus,
-                    :secured,
-                    :fulfilled_ether_balance
-                )
-
-                INSERT INTO Pools (id, name, withdrawal_contract_address)
-                VALUES (:id, :name, :withdrawal_contract_address)
-
+                INSERT INTO Pools (id, name, withdrawal_contract_address, withdrawal_credentials)
+                VALUES (:id, :name, :withdrawal_contract_address, :withdrawal_credentials)
                 """,
                 pools,
             )
@@ -111,14 +99,14 @@ def check_pool_by_id(pool_id: int) -> bool:
                     return True
                 else:
                     raise DatabaseMismatchError(
-                        f"There are {len(result)} Pools with the same ID in table Pools"
+                        f"There are {len(result)} Pools with the ID: {pool_id} in table Pools"
                     )
             return False
     except Exception as e:
         raise DatabaseError(f"Error checking pool by ID in table Pools") from e
 
 
-def update_multiple_pools(pool_updates: list[dict]) -> None:
+def update_many_pools_data(pool_updates: list[dict]) -> None:
     """Updates specified fields in the Pools table for multiple pool IDs.
 
     Args:
@@ -133,8 +121,13 @@ def update_multiple_pools(pool_updates: list[dict]) -> None:
                 db.execute(
                     """
                     UPDATE Pools
-                    SET price = :price, total_supply = :total_supply, surplus = :surplus, secured = :secured, fulfilled_ether_balance = :fulfilled_ether_balance
-                    WHERE id = :pool_id
+                    SET price = :price, 
+                        total_supply = :total_supply, 
+                        surplus = :surplus, 
+                        secured = :secured, 
+                        fulfilled_ether_balance = :fulfilled_ether_balance
+                    WHERE 
+                        id = :pool_id
                     """,
                     update,
                 )
@@ -160,7 +153,7 @@ def pool_count() -> int:
         raise DatabaseError("Error counting pools in table Pools") from e
 
 
-def get_all_pool_ids() -> list[int]:
+def get_all_pool_ids() -> list[str]:
     """Returns all the pool ids from the database.
 
     Returns:
@@ -177,28 +170,58 @@ def get_all_pool_ids() -> list[int]:
         raise DatabaseError("Error getting all pool ids from table Pools") from e
 
 
-def fetch_timely_pool_data(pool_id: str) -> tuple:
-    """Fetches the timely data of a pool from the database.
+def fetch_latest_pool_data_batch(pool_ids: list[str]) -> list[tuple]:
+    """Fetches the latest data for a batch of pools from the database.
+        This data is updated previously while indexing the slots.
 
     Args:
-        pool_id (str): The pool id to fetch the data for.
+        pool_ids (list[str]): List of pool ids.
 
     Returns:
-        tuple: The timely data of the pool
+        list[tuple]: The latest up-to-date data for the pools
 
     Raises:
         DatabaseError: Error fetching timely data of pool from table Pools
     """
     try:
         with Database() as db:
+            placeholders = ",".join("?" * len(pool_ids))
             db.execute(
-                """
-                SELECT fulfilled_ether_balance, secured, surplus, total_supply, price
-                FROM Pools
-                WHERE id = :id
-                """,
-                {"id": pool_id},
+                f"""
+                SELECT 
+                    id,
+                    price,
+                    total_supply,
+                    surplus,
+                    secured,
+                    fulfilled_ether_balance 
+                FROM Pools 
+                WHERE id 
+                IN ({placeholders})""",
+                pool_ids,
             )
-            return db.fetchone()[0]
+            return db.fetchall()
+
     except Exception as e:
         raise DatabaseError("Error fetching timely data of pool from table Pools") from e
+
+
+def fetch_withdrawal_contract_address(pool_id: int) -> str:
+    try:
+        with Database() as db:
+            db.execute(
+                "SELECT withdrawal_contract_address FROM Pools WHERE id = :id", {"id": pool_id}
+            )
+            result = db.fetchone()[0]
+            if result:
+                if len(result) == 1:
+                    return result
+                else:
+                    raise DatabaseMismatchError(
+                        f"There are {len(result)} Pools with the ID: {pool_id} in table Pools"
+                    )
+            raise DatabaseMismatchError(
+                f"Pool with ID are {pool_id} does not have withdrawal_contract_address"
+            )
+    except Exception as e:
+        raise DatabaseError(f"Error fetching withdrawal_contract_address from table Pools") from e
