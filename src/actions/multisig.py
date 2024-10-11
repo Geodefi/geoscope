@@ -16,6 +16,7 @@ from src.globals import get_sdk, get_logger, get_config
 from src.exceptions import ContractCreationError
 
 # TODO: Many of these are displaced.
+# Check this.
 
 
 def get_caller_data():

@@ -60,3 +60,4 @@ def process_fee_recipients(slot_num: int):
 
     if thefts:
         # TODO: call regulateOperators here.
+        pass

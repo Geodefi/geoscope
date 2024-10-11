@@ -16,7 +16,6 @@ from src.utils.thread import multithread
 from src.globals import get_sdk, get_constants
 from src.database.pools import fetch_latest_pool_data_batch
 
-# from src.actions.multisig import send_tx
 
 from src.helpers.validators import gather_validator_data_by_pool
 from src.helpers.portal import fetch_portal_state, get_oracle_update_timestamp
@@ -175,7 +174,7 @@ def prepare_report(balances: list, prices: list) -> tuple[str, str, int]:
 
 def report_beacon(
     price_merkle_root: str, balance_merkle_root: str, all_validators_count: int, block_number: int
-) -> None:
+) -> bool:
     """Reports the beacon.
 
     Args:
@@ -233,6 +232,5 @@ def report_beacon(
         # TODO: raise if oracle_address is not in safe_owners
         raise Exception("Some error occurred. Please contact the Geodefi Team.")
 
-    # TODO: save merkle trees TO DB.
-
+    return True
     # if state is active and balance less than 16, it is a problem, raise error and exit (WHAT DOES THIS THING MEAN??)

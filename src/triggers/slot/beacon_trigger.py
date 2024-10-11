@@ -17,6 +17,7 @@ from src.database.pools import get_all_pool_ids
 from src.helpers.merkle import gather_merkle_data, prepare_report, report_beacon
 from src.helpers.validators import should_verify_validators, verify_validators_batch
 from src.helpers.fee_recipient import process_fee_recipients
+from src.database.merkles import save_merkle_tree_json
 
 
 class BeaconTrigger(Trigger):
@@ -109,17 +110,21 @@ class BeaconTrigger(Trigger):
         should_update, prices_data = gather_merkle_data(pool_ids, block_number, slot=slot_number)
 
         if should_update:
-            price_iterator: Iterator = ([pool[0], pool[1]] for pool in prices_data)
-            balance_iterator: Iterator = (
+            price_iterator: Iterator = [[pool[0], pool[1]] for pool in prices_data]
+            balance_iterator: Iterator = [
                 [val[0], val[7], val[4] + val[6]] for pool in prices_data for val in pool[2]
-            )
+            ]
 
             price_merkle_root, balance_merkle_root, all_validators_count = prepare_report(
                 balance_iterator, price_iterator
             )
-            report_beacon(
+
+            success: bool = report_beacon(
                 price_merkle_root, balance_merkle_root, all_validators_count, block_number
             )
+            if success:
+                save_merkle_tree_json(price_merkle_root, price_iterator)
+                save_merkle_tree_json(balance_merkle_root, price_iterator)
 
     def process_verifications(self, slot_number: int, block_number: int):
         """
