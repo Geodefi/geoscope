@@ -3,21 +3,21 @@
 from typing import Iterator
 from src.classes import Trigger
 from src.helpers.slots import fetch_slots_batch
-from src.helpers.withdrawals import filter_withdrawals_batch, process_many_withdrawals
-from src.helpers.deposits import filter_deposits_batch, process_many_deposits
+from src.helpers.withdrawals import filter_withdrawals_batch, process_withdrawals_batch
+from src.helpers.deposits import filter_deposits_batch, process_deposits_batch
 from src.helpers.portal import update_portal_pools
-from src.database.slots import insert_many_slots, get_max_slot, fetch_block_number
-from src.database.deposits import insert_many_deposits
-from src.database.withdrawals import insert_many_withdrawals
+from src.database.slots import insert_slots_batch, read_max_slot, read_block_number
+from src.database.deposits import insert_deposits_batch
+from src.database.withdrawals import insert_withdrawals_batch
 from src.database.validators import (
     update_portal_validators,
-    detect_proposed_validators,
+    read_proposed_validators,
 )
-from src.database.pools import get_all_pool_ids
-from src.helpers.merkle import gather_merkle_data, prepare_report, report_beacon
-from src.helpers.validators import should_verify_validators, verify_validators_batch
+from src.database.pools import read_pool_ids
+from src.helpers.merkle import gather_merkle_data, prepare_report, transact_report_beacon
+from src.helpers.validators import check_verify_validators, verify_validators_batch
 from src.helpers.fee_recipient import process_fee_recipients
-from src.database.merkles import save_merkle_tree_json
+from src.database.merkles import insert_merkle_tree_json
 
 
 class BeaconTrigger(Trigger):
@@ -51,7 +51,7 @@ class BeaconTrigger(Trigger):
         """
         self.index_slots(curr_slot_num)
 
-        db_latest_block_number = fetch_block_number(curr_slot_num)
+        db_latest_block_number = read_block_number(curr_slot_num)
 
         self.process_report_beacon(curr_slot_num, db_latest_block_number)
 
@@ -72,7 +72,7 @@ class BeaconTrigger(Trigger):
         Args:
             block_number (int): _description_
         """
-        db_slot_num: int = get_max_slot()
+        db_slot_num: int = read_max_slot()
 
         gathered_slots: list[dict] = fetch_slots_batch(
             first_slot=db_slot_num, last_slot=curr_slot_num
@@ -87,18 +87,18 @@ class BeaconTrigger(Trigger):
 
         deposits: list[dict] = filter_deposits_batch(gathered_slots)
         if deposits:
-            process_many_deposits(curr_slot_num, deposits)
-            insert_many_deposits(deposits)
+            process_deposits_batch(curr_slot_num, deposits)
+            insert_deposits_batch(deposits)
 
         withdrawals: list[dict] = filter_withdrawals_batch(gathered_slots)
         if withdrawals:
-            process_many_withdrawals(withdrawals)
-            insert_many_withdrawals(withdrawals)
+            process_withdrawals_batch(withdrawals)
+            insert_withdrawals_batch(withdrawals)
 
         # Since we are getting the latest processed slot here,
         # we should actually **SAVE** it at the last point where we are done
         # processing the validators, deposits and withdrawals:
-        insert_many_slots(gathered_slots)
+        insert_slots_batch(gathered_slots)
 
         # After processing the changes on validators and inserting the slots
         # we will process the fee_recipients:
@@ -106,7 +106,7 @@ class BeaconTrigger(Trigger):
 
     def process_report_beacon(self, slot_number: int, block_number: int):
 
-        pool_ids: list[int] = get_all_pool_ids()
+        pool_ids: list[int] = read_pool_ids()
         should_update, prices_data = gather_merkle_data(pool_ids, block_number, slot=slot_number)
 
         if should_update:
@@ -119,12 +119,12 @@ class BeaconTrigger(Trigger):
                 balance_iterator, price_iterator
             )
 
-            success: bool = report_beacon(
+            success: bool = transact_report_beacon(
                 price_merkle_root, balance_merkle_root, all_validators_count, block_number
             )
             if success:
-                save_merkle_tree_json(price_merkle_root, price_iterator)
-                save_merkle_tree_json(balance_merkle_root, price_iterator)
+                insert_merkle_tree_json(price_merkle_root, price_iterator)
+                insert_merkle_tree_json(balance_merkle_root, price_iterator)
 
     def process_verifications(self, slot_number: int, block_number: int):
         """
@@ -136,10 +136,10 @@ class BeaconTrigger(Trigger):
             block_number (int): block number to be
         """
 
-        pending_validators: list[tuple] = detect_proposed_validators(block_identifier=block_number)
+        pending_validators: list[tuple] = read_proposed_validators(block_identifier=block_number)
 
         aliens = []
-        if should_verify_validators(slot_number, pending_validators):
+        if check_verify_validators(slot_number, pending_validators):
             aliens = verify_validators_batch(pending_validators, block_identifier=block_number)
 
         new_verification_index: int = max(pending_validators, key=lambda x: x["portal_index"])

@@ -2,7 +2,7 @@
 from src.exceptions.helpers.deposits import ValidatorMismatchError
 from src.utils.thread import multithread
 from src.utils.list import flatten
-from src.database.validators import check_pubkey, update_beacon_constants
+from src.database.validators import check_validator_by_pubkey, update_beacon_constants
 from src.database.deposits import check_deposit_by_slot
 from src.helpers.beacon import fetch_validators_batch
 
@@ -27,7 +27,7 @@ def filter_deposits(slot: int, deposits: list[dict]) -> list:
         if not check_deposit_by_slot(slot):
             for d in deposits:
                 # check if pk is available on Portal
-                if check_pubkey(d["pubkey"]):
+                if check_validator_by_pubkey(d["pubkey"]):
                     d["slot"] = slot
                     filtered.append(d)
 
@@ -73,7 +73,7 @@ def __parse_validator_data(deposit, validator) -> list[dict]:
     }
 
 
-def process_many_deposits(slot: int, deposits: list[dict]) -> None:
+def process_deposits_batch(slot: int, deposits: list[dict]) -> None:
     """When a deposit is encountered, we ensured that the pubkey is reachable on the beaconchain.
         So, we will update the Validators db.
 

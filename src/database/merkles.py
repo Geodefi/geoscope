@@ -53,7 +53,7 @@ def reinitialize_merkles_table() -> None:
     create_merkles_table()
 
 
-def save_merkle_tree_json(root_hash, values_list):
+def insert_merkle_tree_json(root_hash, values_list):
     """
     Inserts a Merkle tree root and its associated list (as a whole) into the Merkles table.
 

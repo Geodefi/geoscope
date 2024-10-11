@@ -16,19 +16,19 @@ from web3.contract.contract import ContractEvent
 
 from src.utils.thread import multithread
 from src.globals import get_logger, get_sdk
-from src.helpers.events import get_all_events
+from src.helpers.events import gather_all_events
 from src.database.pools import (
-    pool_count,
-    insert_many_pools_info,
-    get_all_pool_ids,
-    update_many_pools_data,
+    read_pool_count,
+    insert_pools_info_batch,
+    read_pool_ids,
+    update_pool_data_batch,
 )
-from src.database.pools import fetch_withdrawal_contract_address
+from src.database.pools import read_withdrawal_contract_address
 
 # TODO: feels like sdk w3 is displaced? There should be a global web3 instance, we should not be moving it around and giving it to self.
 
 
-def get_StakeParams(block_identifier: str) -> list:
+def call_StakeParams(block_identifier: str) -> list:
     """Returns the result of portal.StakeParams function.
 
     Returns:
@@ -38,7 +38,7 @@ def get_StakeParams(block_identifier: str) -> list:
     return get_sdk().portal.functions.StakeParams().call(block_identifier=block_identifier)
 
 
-def get_verification_index(block_identifier: str) -> int:
+def fetch_verification_index(block_identifier: str) -> int:
     """Verification Index points to the last validator that has been approved by the oracle already.
 
     Args:
@@ -48,10 +48,10 @@ def get_verification_index(block_identifier: str) -> int:
     Returns:
         int: VERIFICATION_INDEX from portal.StakeParams
     """
-    return get_StakeParams(block_identifier)[3]
+    return call_StakeParams(block_identifier)[3]
 
 
-def get_oracle_update_timestamp(block_identifier: str) -> int:
+def fetch_oracle_update_timestamp(block_identifier: str) -> int:
     """Returns the timestamp of the last oracle update.
 
     Args:
@@ -61,10 +61,10 @@ def get_oracle_update_timestamp(block_identifier: str) -> int:
     Returns:
         int: ORACLE_UPDATE_TIMESTAMP from portal.StakeParams
     """
-    return get_StakeParams(block_identifier)[8]
+    return call_StakeParams(block_identifier)[8]
 
 
-def get_oracle_address(block_identifier: str = "finalized") -> str:
+def fetch_oracle_address(block_identifier: str = "finalized") -> str:
     """Returns the address of the oracle.
 
     Args:
@@ -74,10 +74,10 @@ def get_oracle_address(block_identifier: str = "finalized") -> str:
     Returns:
         str: ORACLE_ADDRESS from portal.StakeParams
     """
-    return get_StakeParams(block_identifier)[1]
+    return call_StakeParams(block_identifier)[1]
 
 
-def get_proposed_pubkeys(first_block, last_block) -> list[str]:
+def fetch_proposed_pubkeys(first_block, last_block) -> list[str]:
     """Get the list of proposed pubkeys by checking the event
         named StakeProposal from Portal, between given block range.
 
@@ -91,7 +91,7 @@ def get_proposed_pubkeys(first_block, last_block) -> list[str]:
     # First we need to fetch all the ProposeValidator Events
     proposal_event: ContractEvent = get_sdk().portal.contract.events.StakeProposal()
 
-    detected_events: Iterable[EventData] = get_all_events(
+    detected_events: Iterable[EventData] = gather_all_events(
         event=proposal_event,
         first_block=first_block,
         last_block=last_block,
@@ -102,7 +102,7 @@ def get_proposed_pubkeys(first_block, last_block) -> list[str]:
     return flattened_pks
 
 
-def get_validator_proper(pubkey: str) -> dict:
+def fetch_validator_parsed(pubkey: str) -> dict:
     """Returns the portal data for a validator with the given pubkey.
     Only processes the Portal information, leaves the Beacon chain related ones for later.
     Since the deposits might not be processed at the moment.
@@ -141,7 +141,7 @@ def get_validator_proper(pubkey: str) -> dict:
     }
 
 
-def get_validators_batch(pks: list[str]) -> list[dict]:
+def fetch_portal_validators_batch(pks: list[str]) -> list[dict]:
     """Fetches the data for validators within the given pks list. Returns the gathered data.
 
     Args:
@@ -151,10 +151,10 @@ def get_validators_batch(pks: list[str]) -> list[dict]:
         list[dict]: list of dictionaries containing the validator info
     """
 
-    return multithread(get_validator_proper, pks)
+    return multithread(fetch_validator_parsed, pks)
 
 
-def get_pool_info(pool_index: int, block_number: int) -> dict:
+def gather_pool_info(pool_index: int, block_number: int) -> dict:
     """Returns the data for a pool with the given id.
 
     Args:
@@ -185,7 +185,7 @@ def update_pool_ids(block_number: int) -> None:
     Args:
         block_number (int): block number to update the pool ids
     """
-    number_of_pools: int = pool_count()
+    number_of_pools: int = read_pool_count()
     portal_pool_count: int = (
         get_sdk()
         .portal.functions.allIdsByTypeLength(ID_TYPE.POOL)
@@ -195,9 +195,9 @@ def update_pool_ids(block_number: int) -> None:
     if portal_pool_count > number_of_pools:
         get_logger().info(f"Updating pool ids from {number_of_pools} to {portal_pool_count}")
         pools: list[dict] = multithread(
-            get_pool_info, range(number_of_pools, portal_pool_count), repeat(block_number)
+            gather_pool_info, range(number_of_pools, portal_pool_count), repeat(block_number)
         )
-        insert_many_pools_info(pools)
+        insert_pools_info_batch(pools)
 
 
 # TODO: this feels like it should be in sdk...
@@ -206,7 +206,7 @@ def get_withdrawal_contract(pool_id: int) -> Contract:
     w3: Web3 = sdk.portal.w3
     network: Network = sdk.portal.network
 
-    address = fetch_withdrawal_contract_address(pool_id)
+    address = read_withdrawal_contract_address(pool_id)
 
     _, wp_abi = get_contract_abi(network=network, kind="package", name="WithdrawalPackage")
     contract: Contract = sdk.portal.w3.eth.contract(
@@ -216,7 +216,7 @@ def get_withdrawal_contract(pool_id: int) -> Contract:
     return contract
 
 
-def get_fulfilled_ether_balance(pool_id: int, block_number: int) -> int:
+def fetch_fulfilled_ether_balance(pool_id: int, block_number: int) -> int:
     return int(
         get_withdrawal_contract(pool_id)
         .functions.QueueParams()
@@ -224,7 +224,7 @@ def get_fulfilled_ether_balance(pool_id: int, block_number: int) -> int:
     )
 
 
-def get_pool_data(pool_id: int, block_number: int) -> dict:
+def gather_pool_data(pool_id: int, block_number: int) -> dict:
     """Returns the data for a pool with the given id.
 
     Args:
@@ -245,7 +245,7 @@ def get_pool_data(pool_id: int, block_number: int) -> dict:
 
     # get data from withdrawal contract
     # TODO: What is this_?
-    fulfilled_ether_balance: int = get_fulfilled_ether_balance(pool_id, block_number)
+    fulfilled_ether_balance: int = fetch_fulfilled_ether_balance(pool_id, block_number)
 
     # get data from gETH
     total_supply: int = sdk.gETH.totalSupply(pool_id).call(block_identifier=block_number)
@@ -260,15 +260,15 @@ def get_pool_data(pool_id: int, block_number: int) -> dict:
     }
 
 
-def update_all_pools(block_number: int) -> None:
+def fill_pools_table(block_number: int) -> None:
     """Updates all the pools with the given block number.
 
     Args:
         block_number (int): block number to update the pools
     """
-    pool_ids: list[int] = get_all_pool_ids()  # from db
-    pools: list[dict] = multithread(get_pool_data, pool_ids, repeat(block_number))
-    update_many_pools_data(pools)
+    pool_ids: list[int] = read_pool_ids()  # from db
+    pools: list[dict] = multithread(gather_pool_data, pool_ids, repeat(block_number))
+    update_pool_data_batch(pools)
 
 
 def update_portal_pools(block_number: int) -> None:
@@ -278,7 +278,7 @@ def update_portal_pools(block_number: int) -> None:
         block_number (int): block number to update the pools
     """
     update_pool_ids(block_number)
-    update_all_pools(block_number)
+    fill_pools_table(block_number)
 
 
 def fetch_portal_state(pubkey: str, block_number: int) -> int:
@@ -296,7 +296,7 @@ def fetch_portal_state(pubkey: str, block_number: int) -> int:
     return get_sdk().portal.functions.getValidator(pubkey).call(block_identifier=block_number)[0]
 
 
-def fetch_batch_portal_state(pubkeys: list[str], block_number: int) -> list[int]:
+def fetch_portal_state_batch(pubkeys: list[str], block_number: int) -> list[int]:
     """Fetches the portal state of the given pubkeys.
 
     Args:

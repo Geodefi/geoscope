@@ -11,10 +11,10 @@ from src.globals import get_constants, get_config, get_sdk
 from src.helpers.beacon import fetch_validators_batch
 
 from src.utils.bls import DepositMessage, compute_deposit_domain, compute_signing_root
-from src.database.validators import fetch_validators_by_pool
+from src.database.validators import read_validators_by_pool
 
 
-def should_verify_validators(slot: int, validators: list[tuple]) -> bool:
+def check_verify_validators(slot: int, validators: list[tuple]) -> bool:
     """Checks if it is yet the correct time to verify:
     1.  ANY validator have been waiting for > MAX_VERIFICATION_DELAY
     OR
@@ -42,7 +42,7 @@ def should_verify_validators(slot: int, validators: list[tuple]) -> bool:
     return False
 
 
-def validate_signature(signature, pubkey, withdrawal_credentials, fork_version, amount) -> bool:
+def verify_signature(signature, pubkey, withdrawal_credentials, fork_version, amount) -> bool:
     # Verify deposit signature && pubkey
     deposit_message = DepositMessage(pubkey, withdrawal_credentials, amount)
     domain = compute_deposit_domain(fork_version)
@@ -51,7 +51,7 @@ def validate_signature(signature, pubkey, withdrawal_credentials, fork_version, 
     return bls.Verify(pubkey, signing_root, signature)
 
 
-def validate_withdrawal_credentials(
+def verify_withdrawal_credentials(
     withdrawal_credentials: str, pool_id: str, block_identifier: int
 ) -> bool:
     expected = (
@@ -95,10 +95,10 @@ def verify_validator(validator: tuple, block_identifier: int) -> int:
     if stake_signature:
         return portal_index
 
-    if not validate_withdrawal_credentials(withdrawal_credentials, pool_id, block_identifier):
+    if not verify_withdrawal_credentials(withdrawal_credentials, pool_id, block_identifier):
         return portal_index
 
-    if not validate_signature(
+    if not verify_signature(
         proposal_signature,
         pubkey,
         withdrawal_credentials,
@@ -107,7 +107,7 @@ def verify_validator(validator: tuple, block_identifier: int) -> int:
     ):
         return portal_index
 
-    if not validate_signature(
+    if not verify_signature(
         signature31,
         pubkey,
         withdrawal_credentials,
@@ -150,7 +150,7 @@ def gather_validator_data_by_pool(pool_id: str, slot: int) -> list[tuple]:
     Args:
         pool_id (str): _description_
     """
-    validators_db_data: list[tuple] = fetch_validators_by_pool(pool_id)
+    validators_db_data: list[tuple] = read_validators_by_pool(pool_id)
 
     pubkey_iterator: Iterator = (val[0] for val in validators_db_data)
     validators_beacon_data: Iterator[tuple] = fetch_beacon_data(pubkey_iterator, slot)

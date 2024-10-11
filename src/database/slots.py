@@ -52,7 +52,7 @@ def reinitialize_slots_table() -> None:
     drop_slots_table()
 
 
-def insert_many_slots(gathered_slots: list[dict]) -> None:
+def insert_slots_batch(gathered_slots: list[dict]) -> None:
     """Inserts the gathered data for the given slots into the database.
 
     Args:
@@ -81,7 +81,7 @@ def insert_many_slots(gathered_slots: list[dict]) -> None:
         raise DatabaseError(f"Error inserting many slots into table Slots") from e
 
 
-def get_max_slot() -> int:
+def read_max_slot() -> int:
     """Returns the maximum slot number available on the Slots table"""
     try:
         fallback_slot: int = int(get_constants().chain.start.slot)
@@ -92,7 +92,7 @@ def get_max_slot() -> int:
         raise DatabaseError(f"Error getting the max slot number from table Slots") from e
 
 
-def fetch_block_number(slot: int) -> int:
+def read_block_number(slot: int) -> int:
     """Fetches the block number of given slot from the database.
 
     Returns:
@@ -118,7 +118,7 @@ def fetch_block_number(slot: int) -> int:
         raise DatabaseError(f"Error fetching block_number from table Slots") from e
 
 
-def filter_by_proposer(slot: int) -> list[tuple]:
+def filter_slots_by_proposer(slot: int) -> list[tuple]:
     """Returns the fee proposer_index, block_number, fee_recipient, burned_amount and also expected fee_recipient
     which corresponds to Validators' Pool' withdrawal_contract_address.
     for slots that are proposed by our validators.

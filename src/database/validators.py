@@ -3,7 +3,11 @@
 from src.classes import Database
 from src.exceptions import DatabaseError, DatabaseMismatchError
 from src.globals import get_logger
-from src.helpers.portal import get_proposed_pubkeys, get_verification_index, get_validators_batch
+from src.helpers.portal import (
+    fetch_proposed_pubkeys,
+    fetch_verification_index,
+    fetch_portal_validators_batch,
+)
 
 
 def create_validators_table() -> None:
@@ -65,7 +69,7 @@ def reinitialize_validators_table() -> None:
     create_validators_table()
 
 
-def insert_many_validators(new_validators: list[dict]) -> None:
+def insert_validators_batch(new_validators: list[dict]) -> None:
     """Inserts the given validators data into the database.
 
     Args:
@@ -111,11 +115,11 @@ def fill_validators_table(pks: list[str]) -> None:
     Args:
         pks (list[str]): pubkeys that will be fetched and inserted
     """
-    insert_many_validators(get_validators_batch(pks))
+    insert_validators_batch(fetch_portal_validators_batch(pks))
 
 
 def update_portal_validators(first_block, last_block) -> None:
-    pks: list[str] = get_proposed_pubkeys(first_block, last_block)
+    pks: list[str] = fetch_proposed_pubkeys(first_block, last_block)
     fill_validators_table(pks)
 
 
@@ -324,7 +328,7 @@ def increase_fee_recipient_balances(fee_recipient_balances: dict):
         raise DatabaseError(f"Error updating fee recipient balances in table Validators") from e
 
 
-def check_pubkey(pubkey: str) -> bool:
+def check_validator_by_pubkey(pubkey: str) -> bool:
     """Checks if a given pubkey is saved in the Database.
         Determining if a pubkey is created through the Portal until the latest processed slot.
 
@@ -355,7 +359,7 @@ def check_pubkey(pubkey: str) -> bool:
         raise DatabaseError(f"Error checking if pubkey {pubkey} is in table Validators") from e
 
 
-def check_beacon_index(idx: int) -> bool:
+def check_validator_by_beacon_index(idx: int) -> bool:
     """Checks if a given beacon chain index is saved in the Database.
         Determining if a pubkey is created through the Portal until the latest processed slot.
 
@@ -386,7 +390,7 @@ def check_beacon_index(idx: int) -> bool:
         raise DatabaseError(f"Error checking if index {idx} is in table Validators") from e
 
 
-def fetch_validator_balances() -> list[tuple]:
+def read_validator_balances() -> list[tuple]:
     """Fetches the pubkey and validator balances (beacon and withdrawn) from the database.
     Returns:
         list[dict]: List of pubkey, withdrawn_balance, fee_recipient_balance
@@ -400,7 +404,7 @@ def fetch_validator_balances() -> list[tuple]:
         raise DatabaseError(f"Error fetching validators from table Validators") from e
 
 
-def detect_proposed_validators(block_identifier: str) -> list[tuple]:
+def read_proposed_validators(block_identifier: str) -> list[tuple]:
     """Detects pending validators that are waiting to be approved by Oracle:
         - Proposal_signature exists, meaning the proposal deposit was processed.
         - Has lower index than verification_index, meaning its portal_state is PENDING.
@@ -408,7 +412,7 @@ def detect_proposed_validators(block_identifier: str) -> list[tuple]:
     Returns:
         list[dict]: List of validators with pubkey, portal_index pool_id signature31 withdrawal_credentials, proposal_signature, stake_signature proposal_slot
     """
-    v_idx: int = get_verification_index(block_identifier)
+    v_idx: int = fetch_verification_index(block_identifier)
     try:
         with Database() as db:
             db.execute(
@@ -433,7 +437,7 @@ def detect_proposed_validators(block_identifier: str) -> list[tuple]:
         raise DatabaseError(f"Error fetching validators from table Validators") from e
 
 
-def fetch_validators_by_pool(pool_id: str) -> list[tuple]:
+def read_validators_by_pool(pool_id: str) -> list[tuple]:
     """Fetches the pubkeys, pool_fees, operator_fees, infrastructure_fees,
         withdrawn_balance, last_withdrawns and fee_recipient_balance of the validators in the given pool.
 
@@ -460,7 +464,7 @@ def fetch_validators_by_pool(pool_id: str) -> list[tuple]:
         ) from e
 
 
-def fetch_operator_id_by_beacon_index(beacon_index) -> int:
+def read_operator_id_by_beacon_index(beacon_index) -> int:
     try:
         with Database() as db:
             db.execute(

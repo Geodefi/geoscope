@@ -50,7 +50,7 @@ def reinitialize_deposits_table() -> None:
     create_deposits_table()
 
 
-def insert_many_deposits(deposits: list[dict]) -> None:
+def insert_deposits_batch(deposits: list[dict]) -> None:
     """
 
     Args:

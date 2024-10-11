@@ -53,7 +53,7 @@ def reinitialize_pools_table() -> None:
     create_pools_table()
 
 
-def insert_many_pools_info(pools: list[dict]) -> None:
+def insert_pools_info_batch(pools: list[dict]) -> None:
     """
     Inserts multiple pool records into the Pools table.
 
@@ -106,7 +106,7 @@ def check_pool_by_id(pool_id: int) -> bool:
         raise DatabaseError(f"Error checking pool by ID in table Pools") from e
 
 
-def update_many_pools_data(pool_updates: list[dict]) -> None:
+def update_pool_data_batch(pool_updates: list[dict]) -> None:
     """Updates specified fields in the Pools table for multiple pool IDs.
 
     Args:
@@ -136,7 +136,7 @@ def update_many_pools_data(pool_updates: list[dict]) -> None:
         raise DatabaseError("Error updating multiple pool fields") from e
 
 
-def pool_count() -> int:
+def read_pool_count() -> int:
     """Returns the number of pools in the database.
 
     Returns:
@@ -153,7 +153,7 @@ def pool_count() -> int:
         raise DatabaseError("Error counting pools in table Pools") from e
 
 
-def get_all_pool_ids() -> list[str]:
+def read_pool_ids() -> list[str]:
     """Returns all the pool ids from the database.
 
     Returns:
@@ -170,7 +170,7 @@ def get_all_pool_ids() -> list[str]:
         raise DatabaseError("Error getting all pool ids from table Pools") from e
 
 
-def fetch_latest_pool_data_batch(pool_ids: list[str]) -> list[tuple]:
+def read_latest_pool_data_batch(pool_ids: list[str]) -> list[tuple]:
     """Fetches the latest data for a batch of pools from the database.
         This data is updated previously while indexing the slots.
 
@@ -206,7 +206,7 @@ def fetch_latest_pool_data_batch(pool_ids: list[str]) -> list[tuple]:
         raise DatabaseError("Error fetching timely data of pool from table Pools") from e
 
 
-def fetch_withdrawal_contract_address(pool_id: int) -> str:
+def read_withdrawal_contract_address(pool_id: int) -> str:
     try:
         with Database() as db:
             db.execute(

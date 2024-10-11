@@ -29,7 +29,7 @@ git checkout -b my-new-feature
 - `revert`: a commit that reverts a previous change.
 - `chore`: a catch-all type for any other commits. For instance, if you're implementing a single feature and it makes sense to divide the work into multiple commits, you should mark one commit as feat and the rest as chore.
 
-## 2. Check linter and formatter errors
+## 3. Check linter and formatter errors
 
 Run this before pushing your changes:
 

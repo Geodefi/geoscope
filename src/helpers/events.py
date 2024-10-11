@@ -13,7 +13,7 @@ from src.utils.list import flatten
 
 
 @multiple_attempt
-def get_batch_events(event: ContractEvent, from_block: int, limit: int) -> Iterable[EventData]:
+def fetch_event_logs(event: ContractEvent, from_block: int, limit: int) -> Iterable[EventData]:
     """Get events within a range of blocks.
 
     Args:
@@ -39,7 +39,9 @@ def get_batch_events(event: ContractEvent, from_block: int, limit: int) -> Itera
     return logs
 
 
-def get_all_events(event: ContractEvent, first_block: int, last_block: int) -> Iterable[EventData]:
+def gather_all_events(
+    event: ContractEvent, first_block: int, last_block: int
+) -> Iterable[EventData]:
     """Get all events emitted within given range of blocks. It uses get_batch_events
     to get events in batches within multhithread and then combines them.
 
@@ -57,7 +59,7 @@ def get_all_events(event: ContractEvent, first_block: int, last_block: int) -> I
         r: range = range(first_block, first_block + 1)
 
     log_batches: Iterable[EventData] = multithread(
-        get_batch_events, repeat(event), r, repeat(last_block)
+        fetch_event_logs, repeat(event), r, repeat(last_block)
     )
 
     # Note that the events should be sorted as: blockNumber->transactionIndex->logIndex

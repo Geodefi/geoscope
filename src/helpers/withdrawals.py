@@ -3,7 +3,7 @@ from functools import reduce
 
 from src.utils.thread import multithread
 from src.utils.list import flatten
-from src.database.validators import check_beacon_index, increase_withdrawn_balances
+from src.database.validators import check_validator_by_beacon_index, increase_withdrawn_balances
 from src.database.withdrawals import check_withdrawal_by_slot
 
 
@@ -27,7 +27,7 @@ def filter_withdrawals(slot: int, withdrawals: list[dict]) -> list:
         if not check_withdrawal_by_slot(slot):
             for w in withdrawals:
                 # check if pk is available on Portal
-                if check_beacon_index(w["validator_index"]):
+                if check_validator_by_beacon_index(w["validator_index"]):
                     w["slot"] = slot
                     filtered.append(w)
 
@@ -55,7 +55,7 @@ def filter_withdrawals_batch(slots: list[dict]) -> list[dict]:
     return flatten(filtered_withdrawals)
 
 
-def process_many_withdrawals(withdrawals: list[dict]):
+def process_withdrawals_batch(withdrawals: list[dict]):
     """Processes the withdrawal amounts for encontered pubkeys.
     Updates the update the Validators db for:
         - withdrawn_balance

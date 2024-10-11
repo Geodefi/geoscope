@@ -51,7 +51,7 @@ def reinitialize_withdrawals_table() -> None:
     create_withdrawals_table()
 
 
-def insert_many_withdrawals(withdrawals: list[dict]) -> None:
+def insert_withdrawals_batch(withdrawals: list[dict]) -> None:
     """
 
     Args:

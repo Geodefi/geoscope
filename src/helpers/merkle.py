@@ -14,15 +14,15 @@ from geodefi.globals import (
 )
 from src.utils.thread import multithread
 from src.globals import get_sdk, get_constants
-from src.database.pools import fetch_latest_pool_data_batch
+from src.database.pools import read_latest_pool_data_batch
 
 
 from src.helpers.validators import gather_validator_data_by_pool
-from src.helpers.portal import fetch_portal_state, get_oracle_update_timestamp
+from src.helpers.portal import fetch_portal_state, fetch_oracle_update_timestamp
 from src.actions.multisig import get_gnosis_safe
 
 
-def calc_effective_balance(val: tuple, block_number: int):
+def compute_effective_balance(val: tuple, block_number: int):
     """
         withdrawn_balance
         + fee_recipient_balance
@@ -66,11 +66,11 @@ def calc_effective_balance(val: tuple, block_number: int):
     )
 
 
-def calc_effective_balances_batch(validators: list[tuple], block_number: int):
-    multithread(calc_effective_balance, validators, repeat(block_number))
+def compute_effective_balances_batch(validators: list[tuple], block_number: int):
+    multithread(compute_effective_balance, validators, repeat(block_number))
 
 
-def calc_price(pool: tuple, block_number: int, slot: int) -> tuple:
+def compute_price(pool: tuple, block_number: int, slot: int) -> tuple:
     """Calculates the price of a pool.
 
     Args:
@@ -81,7 +81,7 @@ def calc_price(pool: tuple, block_number: int, slot: int) -> tuple:
 
     validators: list[tuple] = gather_validator_data_by_pool(pool_id, slot)
 
-    total_validator_balances: int = sum(calc_effective_balances_batch(validators, block_number))
+    total_validator_balances: int = sum(compute_effective_balances_batch(validators, block_number))
 
     total_balance: int = (
         int(total_validator_balances) + int(secured) + int(surplus) - int(fulfilled_ether_balance)
@@ -98,8 +98,8 @@ def calc_price(pool: tuple, block_number: int, slot: int) -> tuple:
     )
 
 
-def calc_prices_batch(pools: list[tuple], block_number: int, slot: int):
-    return multithread(calc_price, pools, repeat(block_number), repeat(slot))
+def compute_prices_batch(pools: list[tuple], block_number: int, slot: int):
+    return multithread(compute_price, pools, repeat(block_number), repeat(slot))
 
 
 def get_merkle_refresh_rate() -> int:
@@ -110,7 +110,7 @@ def get_merkle_refresh_rate() -> int:
 
 
 def is_merkle_old(block_number: int) -> bool:
-    last_update_ts: int = get_oracle_update_timestamp(block_number)
+    last_update_ts: int = fetch_oracle_update_timestamp(block_number)
 
     current_ts: int = get_sdk().w3.eth.get_block(block_number).timestamp
     merkle_refresh_rate: int = get_merkle_refresh_rate()
@@ -126,9 +126,9 @@ def gather_merkle_data(pool_ids: list[int], block_number: int, slot: int) -> tup
     should_update: bool = is_merkle_old(block_number)
 
     # Calculates the new price and then checks if there are any increase that exceeds 1%
-    pools: list[tuple] = fetch_latest_pool_data_batch(pool_ids)
+    pools: list[tuple] = read_latest_pool_data_batch(pool_ids)
 
-    prices_data: list[tuple] = calc_prices_batch(pools, block_number, slot)
+    prices_data: list[tuple] = compute_prices_batch(pools, block_number, slot)
 
     if not should_update:
         should_update: bool = any(obj[1] for obj in prices_data)
@@ -172,7 +172,7 @@ def prepare_report(balances: list, prices: list) -> tuple[str, str, int]:
     return (price_merkle_tree.root, balance_merkle_tree.root, all_val_count)
 
 
-def report_beacon(
+def transact_report_beacon(
     price_merkle_root: str, balance_merkle_root: str, all_validators_count: int, block_number: int
 ) -> bool:
     """Reports the beacon.
