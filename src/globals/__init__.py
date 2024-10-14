@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 # pylint: disable=global-statement
 
+# TODO: I need some tying here...
 
 # global CONFIG referance that requires initialization
 __CONFIG = None

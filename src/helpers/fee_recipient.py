@@ -9,6 +9,7 @@ from src.database.validators import (
 )
 from src.utils.thread import multithread
 from src.globals import get_sdk
+from src.helpers.portal import handle_regulate_operators
 
 
 def detect_theft(slot_info: tuple) -> tuple:
@@ -54,8 +55,10 @@ def process_fee_recipients(slot_num: int):
     increase_fee_recipient_balances(total_profits_by_proposer)
 
     thefts: list[tuple] = multithread(detect_theft, resulting_slots)
-    thefts = list(filter(None, thefts))  # This will remove any None results
+
+    # This will remove any None results, then transpose the list of tuples into a list
+    # that is containing 2 list: fee_thefts & proofs
+    transposed_thefts = list(map(list, zip(*list(filter(None, thefts)))))
 
     if thefts:
-        # TODO: (now) call regulateOperators here.
-        pass
+        handle_regulate_operators(fee_thefts=transposed_thefts[0], proofs=transposed_thefts[1])

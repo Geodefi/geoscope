@@ -12,12 +12,11 @@ from geodefi.globals import (
     ETHER_DENOMINATOR,
 )
 from src.utils.thread import multithread
-from src.globals import get_sdk, get_constants, get_config
+from src.globals import get_sdk, get_config
 from src.database.pools import read_latest_pool_data_batch
 from src.utils.notify import send_email
 from src.helpers.validators import gather_validator_data_by_pool
 from src.helpers.portal import fetch_portal_state, fetch_oracle_update_timestamp
-from src.actions.portal import transact_reportBeacon
 
 
 def compute_effective_balance(val: tuple, block_number: int):
@@ -86,11 +85,12 @@ def compute_price(pool: tuple, block_number: int, slot: int) -> tuple:
     )
 
     new_price = total_balance * ETHER_DENOMINATOR / total_supply
-    price_change_threshold = int(get_config().strategy.price_change_threshold)
+    price_change_threshold = int(
+        get_config().strategy.price_change_threshold
+    )  # todo: do this convergion once! and check
     return (
         pool_id,
         new_price,
-        # TODO: (now) 1 here should be adjustable, somehow:
         (new_price * 100) >= (current_price * (100 + price_change_threshold)),  # %1 increase
         validators,
     )
@@ -103,8 +103,8 @@ def compute_prices_batch(pools: list[tuple], block_number: int, slot: int):
 def get_merkle_refresh_rate() -> int:
     # if 24 hours has passed since the last update, should update the merkle tree
     # 24 hours in seconds
-    # # TODO: (now) dynamic param in config.strategy
-    return int(86400)
+    merkle_refresh_rate = int(get_config().strategy.merkle_refresh_rate)
+    return merkle_refresh_rate
 
 
 def is_merkle_old(block_number: int) -> bool:
@@ -172,40 +172,3 @@ def prepare_report(balances: Iterator, prices: Iterator) -> tuple[str, str, int]
         all_val_count = 50_000  # minimum count for the merkle tree
 
     return (price_merkle_tree.root, balance_merkle_tree.root, all_val_count)
-
-
-def report_beacon(
-    price_merkle_root: str, balance_merkle_root: str, all_validators_count: int, block_number: int
-) -> bool:
-    """Reports the beacon
-     - oracle is the owner's address->  no multisig                 ->  portal.reportBeacon
-     - oracle is not owner's address->  one signer on multisig      ->  multisig.execTransaction
-     - oracle is not owner's address->  multiple signers on multisig->  watcher.submit
-    Args:
-        price_merkle_root (str): The price merkle root.
-        balance_merkle_root (str): The balance merkle root.
-        all_validators_count (int): The all validators count.
-        block_number (int): The block number to report the beacon for.
-    """
-
-    signer_address = get_constants().signer.address
-
-    oracle_address = get_constants().oracle_address
-
-    if signer_address == oracle_address:
-        transact_reportBeacon(price_merkle_root, balance_merkle_root, all_validators_count)
-
-    safe_owners: list = get_constants().oracle.functions.getOwners().call()
-
-    if len(safe_owners) == 1 and safe_owners[0] == signer_address:
-        # TODO: call multisig directly, no watchers.
-        pass
-    elif len(safe_owners) > 1:
-        # TODO: call watchers
-        pass
-    else:
-        # TODO: raise if oracle_address is not in safe_owners => use api.
-        raise Exception("Some error occurred. Please contact the Geodefi Team.")
-
-    return True
-    # if state is active and balance less than 16, it is a problem, raise error and exit (WHAT DOES THIS THING MEAN??)

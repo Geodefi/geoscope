@@ -15,7 +15,7 @@ from web3.contract import Contract
 from web3.contract.contract import ContractEvent
 
 from src.utils.thread import multithread
-from src.globals import get_logger, get_sdk
+from src.globals import get_logger, get_sdk, get_constants
 from src.helpers.events import gather_all_events
 from src.database.pools import (
     read_pool_count,
@@ -24,6 +24,12 @@ from src.database.pools import (
     update_pool_data_batch,
 )
 from src.database.pools import read_withdrawal_contract_address
+from src.actions.portal import (
+    transact_reportBeacon,
+    transact_regulateOperators,
+    transact_updateVerificationIndex,
+)
+from src.actions.watchers import post_submit
 
 # TODO: (later) (sdk) feels like sdk w3 is displaced? There should be a global web3 instance, we should not be moving it around and giving it to self.
 
@@ -307,3 +313,105 @@ def fetch_portal_state_batch(pubkeys: list[str], block_number: int) -> list[int]
     """
 
     return multithread(fetch_portal_state, pubkeys, repeat(block_number))
+
+
+def handle_report_beacon(
+    price_merkle_root: str, balance_merkle_root: str, all_validators_count: int
+) -> bool:
+    """Reports the beacon
+     - oracle is the owner's address->  no multisig         ->  portal.reportBeacon
+     - oracle is not owner's address->  signer on multisig  ->  watcher.submit
+    Args:
+        price_merkle_root (str): The price merkle root.
+        balance_merkle_root (str): The balance merkle root.
+        all_validators_count (int): The all validators count.
+    """
+
+    signer_address = get_constants().signer.address
+
+    oracle_address = get_constants().oracle_address
+
+    if signer_address == oracle_address:
+        transact_reportBeacon(price_merkle_root, balance_merkle_root, all_validators_count)
+
+    safe_owners: list = get_constants().oracle.functions.getOwners().call()
+
+    if signer_address in safe_owners:
+        method_id = "0xdf1ff929"
+        types: list = ["bytes32", "bytes32", "uint256"]
+
+        post_submit(
+            method_id=method_id,
+            types=types,
+            values=[price_merkle_root, balance_merkle_root, all_validators_count],
+        )
+    else:
+        raise Exception("You are not authorized as a multisig member for Oracle")
+
+    return True
+
+
+def handle_regulate_operators(
+    fee_thefts: list[int],
+    proofs: list[bytes],
+) -> bool:
+    """Reports the beacon
+     - oracle is the owner's address->  no multisig         ->  portal.updateVerificationIndex
+     - oracle is not owner's address->  signer on multisig  ->  watcher.submit
+    Args:
+    """
+    signer_address = get_constants().signer.address
+
+    oracle_address = get_constants().oracle_address
+
+    if signer_address == oracle_address:
+        transact_regulateOperators(fee_thefts, proofs)
+
+    safe_owners: list = get_constants().oracle.functions.getOwners().call()
+
+    if signer_address in safe_owners:
+        method_id = "0xaf6561ef"
+        types: list = ["uint256[]", "bytes[]"]
+
+        post_submit(
+            method_id=method_id,
+            types=types,
+            values=[fee_thefts, proofs],
+        )
+    else:
+        raise Exception("You are not authorized as a multisig member for Oracle")
+
+    return True
+
+
+def handle_update_verification_index(
+    validator_verification_index: int,
+    alienated_pubkeys: list[str],
+):
+    """Reports the beacon
+     - oracle is the owner's address->  no multisig         ->  portal.regulateOperators
+     - oracle is not owner's address->  signer on multisig  ->  watcher.submit
+    Args:
+    """
+    signer_address = get_constants().signer.address
+
+    oracle_address = get_constants().oracle_address
+
+    if signer_address == oracle_address:
+        transact_updateVerificationIndex(validator_verification_index, alienated_pubkeys)
+
+    safe_owners: list = get_constants().oracle.functions.getOwners().call()
+
+    if signer_address in safe_owners:
+        method_id = "0x26eef2c0"
+        types: list = ["uint256", "bytes[]"]
+
+        post_submit(
+            method_id=method_id,
+            types=types,
+            values=[validator_verification_index, alienated_pubkeys],
+        )
+    else:
+        raise Exception("You are not authorized as a multisig member for Oracle")
+
+    return True

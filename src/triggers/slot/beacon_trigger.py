@@ -19,7 +19,7 @@ from src.helpers.validators import should_verify_validators, verify_validators_b
 from src.helpers.fee_recipient import process_fee_recipients
 from src.database.merkles import insert_merkle_tree_json
 
-from src.helpers.merkle import report_beacon
+from src.helpers.portal import handle_report_beacon, handle_update_verification_index
 
 
 class BeaconTrigger(Trigger):
@@ -121,8 +121,8 @@ class BeaconTrigger(Trigger):
                 balance_iterator, price_iterator
             )
 
-            success: bool = report_beacon(
-                price_merkle_root, balance_merkle_root, all_validators_count, block_number
+            success: bool = handle_report_beacon(
+                price_merkle_root, balance_merkle_root, all_validators_count
             )
 
             if success:
@@ -147,4 +147,4 @@ class BeaconTrigger(Trigger):
 
         new_verification_index: int = max(pending_validators, key=lambda x: x["portal_index"])
 
-        # TODO: (now)  --- call the tx handler with new_verification_index and aliens ---
+        success: bool = handle_update_verification_index(new_verification_index, aliens)
