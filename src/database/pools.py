@@ -93,14 +93,9 @@ def check_pool_by_id(pool_id: int) -> bool:
     try:
         with Database() as db:
             db.execute("SELECT * FROM Pools WHERE id = ?", (pool_id,))
-            result = db.fetchall()
+            result = db.fetchone()
             if result:
-                if len(result) == 1:
-                    return True
-                else:
-                    raise DatabaseMismatchError(
-                        f"There are {len(result)} Pools with the ID: {pool_id} in table Pools"
-                    )
+                return True
             return False
     except Exception as e:
         raise DatabaseError(f"Error checking pool by ID in table Pools") from e
@@ -206,7 +201,7 @@ def read_latest_pool_data_batch(pool_ids: list[str]) -> list[tuple]:
         raise DatabaseError("Error fetching timely data of pool from table Pools") from e
 
 
-def read_withdrawal_contract_address(pool_id: int) -> str:
+def read_withdrawal_contract_address(pool_id: str) -> str:
     try:
         with Database() as db:
             db.execute(
@@ -214,12 +209,7 @@ def read_withdrawal_contract_address(pool_id: int) -> str:
             )
             result = db.fetchone()[0]
             if result:
-                if len(result) == 1:
-                    return result
-                else:
-                    raise DatabaseMismatchError(
-                        f"There are {len(result)} Pools with the ID: {pool_id} in table Pools"
-                    )
+                return result
             raise DatabaseMismatchError(
                 f"Pool with ID are {pool_id} does not have withdrawal_contract_address"
             )

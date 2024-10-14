@@ -14,7 +14,7 @@ from src.utils.bls import DepositMessage, compute_deposit_domain, compute_signin
 from src.database.validators import read_validators_by_pool
 
 
-def check_verify_validators(slot: int, validators: list[tuple]) -> bool:
+def should_verify_validators(slot: int, validators: list[tuple]) -> bool:
     """Checks if it is yet the correct time to verify:
     1.  ANY validator have been waiting for > MAX_VERIFICATION_DELAY
     OR

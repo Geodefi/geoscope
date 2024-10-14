@@ -41,7 +41,7 @@ def preflight_checks(test_email: bool = False):
     """
     config = get_config()
 
-    # TODO: --reset, --hard-reset: reconstructs validator, pool, etc. data from slots.
+    # TODO: (now) --reset, --hard-reset: reconstructs validator, pool, etc. data from slots.
     # Sections
     if not "chains" in config:
         raise MissingConfigurationError("'chains' section on config.json is missing or empty.")
@@ -138,7 +138,7 @@ def preflight_checks(test_email: bool = False):
                     "Don't forget to check your script regularly tho. This service can fail too!",
                     dont_notify_devs=True,
                 )
-    # TODO: ping watchers
+    # TODO: (later) ping watchers
 
 
 def setup(**kwargs):

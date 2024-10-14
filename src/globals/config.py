@@ -21,7 +21,7 @@ def apply_flags(
     Returns:
         AttributeDict: the configuration with the flags applied.
     """
-    # TODO: these should be implemented according to the config.json
+    # TODO: (later) these should be implemented according to the config.json
     # DONE! but need to check when fixing the commands neverthless. So stays a to-do.
 
     config.dir = flags.main_dir

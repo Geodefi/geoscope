@@ -20,27 +20,25 @@ def detect_theft(slot_info: tuple) -> tuple:
     return read_operator_id_by_beacon_index(proposer_index), block_number
 
 
+def get_tx_fee(tx: dict):
+    tx_receipt: dict = get_sdk().portal.w3.eth.get_transaction_receipt(tx["hash"])
+    return int(tx_receipt["gasUsed"]) * int(tx_receipt["effectiveGasPrice"])
+
+
 def compute_recipient_fee(slot_info: tuple) -> tuple:
     proposer_index, block_number, fee_recipient, burned_amount, withdrawal_contract_address = (
         slot_info
     )
 
     if fee_recipient != withdrawal_contract_address:
-        # TODO: MEV here.
+        # TODO: (later)  MEV here.
         return proposer_index, 0
 
-    w3_eth = get_sdk().portal.w3.eth
-    block = w3_eth.get_block(block_number, full_transactions=True)
+    block: dict = get_sdk().portal.w3.eth.get_block(block_number, full_transactions=True)
 
-    tx_fee_sum = 0
-    for tx in block.transactions:
-        tx_receipt = w3_eth.get_transaction_receipt(tx.hash)
-        tx_fee = int(tx_receipt["gasUsed"]) * int(tx_receipt["effectiveGasPrice"])
-        tx_fee_sum += tx_fee
+    tx_fees_sum: int = sum(multithread(get_tx_fee, block.transactions))
 
-    profit = tx_fee_sum - int(burned_amount)
-
-    return proposer_index, profit
+    return proposer_index, tx_fees_sum - int(burned_amount)
 
 
 def process_fee_recipients(slot_num: int):
@@ -59,5 +57,5 @@ def process_fee_recipients(slot_num: int):
     thefts = list(filter(None, thefts))  # This will remove any None results
 
     if thefts:
-        # TODO: call regulateOperators here.
+        # TODO: (now) call regulateOperators here.
         pass

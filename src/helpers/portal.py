@@ -25,7 +25,7 @@ from src.database.pools import (
 )
 from src.database.pools import read_withdrawal_contract_address
 
-# TODO: feels like sdk w3 is displaced? There should be a global web3 instance, we should not be moving it around and giving it to self.
+# TODO: (later) (sdk) feels like sdk w3 is displaced? There should be a global web3 instance, we should not be moving it around and giving it to self.
 
 
 def call_StakeParams(block_identifier: str) -> list:
@@ -200,13 +200,13 @@ def update_pool_ids(block_number: int) -> None:
         insert_pools_info_batch(pools)
 
 
-# TODO: this feels like it should be in sdk...
+# TODO: (later) (sdk)  this feels like it should be in sdk...
 def get_withdrawal_contract(pool_id: int) -> Contract:
     sdk: Geode = get_sdk()
     w3: Web3 = sdk.portal.w3
     network: Network = sdk.portal.network
 
-    address = read_withdrawal_contract_address(pool_id)
+    address = read_withdrawal_contract_address(str(pool_id))
 
     _, wp_abi = get_contract_abi(network=network, kind="package", name="WithdrawalPackage")
     contract: Contract = sdk.portal.w3.eth.contract(
@@ -217,7 +217,7 @@ def get_withdrawal_contract(pool_id: int) -> Contract:
 
 
 def fetch_fulfilled_ether_balance(pool_id: int, block_number: int) -> int:
-    return int(
+    return (
         get_withdrawal_contract(pool_id)
         .functions.QueueParams()
         .call(block_identifier=block_number)["fulfilledEtherBalance"]
@@ -244,7 +244,6 @@ def gather_pool_data(pool_id: int, block_number: int) -> dict:
     )
 
     # get data from withdrawal contract
-    # TODO: What is this_?
     fulfilled_ether_balance: int = fetch_fulfilled_ether_balance(pool_id, block_number)
 
     # get data from gETH

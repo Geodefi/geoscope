@@ -3,7 +3,7 @@
 from src.common.attribute_dict import AttributeDict
 from src.globals import get_config, get_sdk
 from src.helpers.portal import fetch_oracle_address
-from src.actions.multisig import get_gnosis_safe
+from src.helpers.gnosis import get_gnosis_safe
 
 
 def init_constants() -> AttributeDict:
@@ -13,7 +13,7 @@ def init_constants() -> AttributeDict:
     Returns:
         AttributeDict: config as a dict object, that can also utilize dot notation
     """
-    signer_address = get_sdk().w3.eth.default_account
+    signer = get_sdk().w3.eth.default_account
     oracle_address = get_sdk().w3.to_checksum_address(fetch_oracle_address())
     oracle = get_gnosis_safe(oracle_address=oracle_address)
     config = get_config()
@@ -24,13 +24,12 @@ def init_constants() -> AttributeDict:
         {
             "oracle_address": oracle_address,
             "oracle": oracle,
-            "signer": signer_address,
+            "signer": signer,
             "chain": chain,
         }
     )
 
 
-# TODO: I don't want to see get_constants(), all things related should be functionalized here.
-
-# This folder should probably in utils or helpers.
+# TODO: (what) I don't want to see get_constants(), all things related should be functionalized here.
+# TODO: (now)This folder should probably in utils or helpers.
 # Same goes for sdk and config.

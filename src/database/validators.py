@@ -8,6 +8,7 @@ from src.helpers.portal import (
     fetch_verification_index,
     fetch_portal_validators_batch,
 )
+from src.utils.notify import send_email
 
 
 def create_validators_table() -> None:
@@ -165,7 +166,10 @@ def update_beacon_constants(validators: list[dict]) -> None:
 
                 # Check if stake_signature already exists
                 if db_val["stake_signature"]:
-                    # TODO: send mail here
+                    send_email(
+                        "An Alien is detected",
+                        f"Unexpected deposit: stake_signature already exists for pubkey {pubkey}",
+                    )
                     raise DatabaseMismatchError(
                         f"Unexpected deposit: stake_signature already exists for pubkey {pubkey}"
                     )
@@ -180,8 +184,8 @@ def update_beacon_constants(validators: list[dict]) -> None:
                     # Add to batch for updating other fields
                     update_fields_batch.append(
                         {
-                            "signature": validator["proposal_signature"],
-                            "slot": validator["proposal_slot"],
+                            "proposal_signature": validator["proposal_signature"],
+                            "proposal_slot": validator["proposal_slot"],
                             "pubkey": validator["pubkey"],
                             "beacon_index": validator["beacon_index"],
                             "withdrawal_credentials": validator["withdrawal_credentials"],
@@ -395,7 +399,7 @@ def read_validator_balances() -> list[tuple]:
     Returns:
         list[dict]: List of pubkey, withdrawn_balance, fee_recipient_balance
     """
-    # TODO: this function is not proper, it might be better to change according to Crash's implementation, later.
+    # TODO: (now) this function is not proper, it might be better to change according to Crash's implementation, later.
     try:
         with Database() as db:
             db.execute("SELECT pubkey, withdrawn_balance, fee_recipient_balance FROM Validators")

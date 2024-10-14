@@ -14,10 +14,12 @@ from src.database.validators import (
     read_proposed_validators,
 )
 from src.database.pools import read_pool_ids
-from src.helpers.merkle import gather_merkle_data, prepare_report, transact_report_beacon
-from src.helpers.validators import check_verify_validators, verify_validators_batch
+from src.helpers.merkle import gather_merkle_data, prepare_report
+from src.helpers.validators import should_verify_validators, verify_validators_batch
 from src.helpers.fee_recipient import process_fee_recipients
 from src.database.merkles import insert_merkle_tree_json
+
+from src.helpers.merkle import report_beacon
 
 
 class BeaconTrigger(Trigger):
@@ -110,21 +112,22 @@ class BeaconTrigger(Trigger):
         should_update, prices_data = gather_merkle_data(pool_ids, block_number, slot=slot_number)
 
         if should_update:
-            price_iterator: Iterator = [[pool[0], pool[1]] for pool in prices_data]
-            balance_iterator: Iterator = [
-                [val[0], val[7], val[4] + val[6]] for pool in prices_data for val in pool[2]
-            ]
+            price_iterator: Iterator = iter(([pool[0], pool[1]] for pool in prices_data))
+            balance_iterator: Iterator = iter(
+                ([val[0], val[7], val[4] + val[6]] for pool in prices_data for val in pool[2])
+            )
 
             price_merkle_root, balance_merkle_root, all_validators_count = prepare_report(
                 balance_iterator, price_iterator
             )
 
-            success: bool = transact_report_beacon(
+            success: bool = report_beacon(
                 price_merkle_root, balance_merkle_root, all_validators_count, block_number
             )
+
             if success:
                 insert_merkle_tree_json(price_merkle_root, price_iterator)
-                insert_merkle_tree_json(balance_merkle_root, price_iterator)
+                insert_merkle_tree_json(balance_merkle_root, balance_iterator)
 
     def process_verifications(self, slot_number: int, block_number: int):
         """
@@ -139,9 +142,9 @@ class BeaconTrigger(Trigger):
         pending_validators: list[tuple] = read_proposed_validators(block_identifier=block_number)
 
         aliens = []
-        if check_verify_validators(slot_number, pending_validators):
+        if should_verify_validators(slot_number, pending_validators):
             aliens = verify_validators_batch(pending_validators, block_identifier=block_number)
 
         new_verification_index: int = max(pending_validators, key=lambda x: x["portal_index"])
 
-        # TODO:  --- call the tx handler with new_verification_index and aliens ---
+        # TODO: (now)  --- call the tx handler with new_verification_index and aliens ---

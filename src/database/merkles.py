@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import json
 
+from typing import Iterator
 from src.classes import Database
 from src.exceptions.classes.database import DatabaseError
 from src.globals import get_logger
@@ -53,7 +54,7 @@ def reinitialize_merkles_table() -> None:
     create_merkles_table()
 
 
-def insert_merkle_tree_json(root_hash, values_list):
+def insert_merkle_tree_json(root_hash: str, values_list: Iterator):
     """
     Inserts a Merkle tree root and its associated list (as a whole) into the Merkles table.
 

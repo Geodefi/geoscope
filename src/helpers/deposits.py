@@ -82,7 +82,7 @@ def process_deposits_batch(slot: int, deposits: list[dict]) -> None:
         deposits (list[dict]): list of deposits to process
     """
     # fetch_validators_batch respects the indices.
-    # TODO: fix this call
+    # TODO: (now)  fix this function
     validators: list[dict] = fetch_validators_batch(slot, deposits)
 
     # Prepare the validators data database:

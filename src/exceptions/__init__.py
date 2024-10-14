@@ -15,4 +15,5 @@ from .globals import (
     MissingPrivateKeyError,
     SDKError,
 )
+from .helpers import EncodingError, ValidatorMismatchError
 from .utils import EmailError, GasApiError, HighGasError

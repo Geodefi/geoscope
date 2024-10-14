@@ -17,7 +17,9 @@
   "strategy": {
     "min_verification_delay": 3600,
     "max_verification_delay": 86400,
-    "max_pending_validators": 10
+    "max_pending_validators": 10,
+    "price_change_threshold": 1,
+    "merkle_refresh_rate": 86400
   },
   "network": {
     "refresh_rate": 60,

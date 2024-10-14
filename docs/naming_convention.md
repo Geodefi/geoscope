@@ -1,4 +1,4 @@
-# Naming convention
+# Naming Convention
 
 ## Functions
 
@@ -77,7 +77,7 @@
   - check_pool_by_id
   - check_deposit_by_slot
 
-- `filter_x_by_y`: Return filtered list of values by given x.
+- `filter_x_by_y`: Return list of values filtered by given y.
   - filter_slots_by_proposer
 
 - `fill_x_table`: Populate tables with data.

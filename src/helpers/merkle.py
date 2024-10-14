@@ -1,9 +1,8 @@
 # -*- coding: utf-8 -*-
 
-import os
 from itertools import repeat
 from multiproof import StandardMerkleTree
-from web3.exceptions import ContractLogicError
+from typing import Iterator
 
 from geodefi.globals import (
     VALIDATOR_STATE,
@@ -13,13 +12,12 @@ from geodefi.globals import (
     ETHER_DENOMINATOR,
 )
 from src.utils.thread import multithread
-from src.globals import get_sdk, get_constants
+from src.globals import get_sdk, get_constants, get_config
 from src.database.pools import read_latest_pool_data_batch
-
-
+from src.utils.notify import send_email
 from src.helpers.validators import gather_validator_data_by_pool
 from src.helpers.portal import fetch_portal_state, fetch_oracle_update_timestamp
-from src.actions.multisig import get_gnosis_safe
+from src.actions.portal import transact_reportBeacon
 
 
 def compute_effective_balance(val: tuple, block_number: int):
@@ -88,12 +86,12 @@ def compute_price(pool: tuple, block_number: int, slot: int) -> tuple:
     )
 
     new_price = total_balance * ETHER_DENOMINATOR / total_supply
-
+    price_change_threshold = int(get_config().strategy.price_change_threshold)
     return (
         pool_id,
         new_price,
-        # TODO: 1 here should be adjustable, somehow:
-        (new_price * 100) >= (current_price * 100 + int(1)),  # %1 increase
+        # TODO: (now) 1 here should be adjustable, somehow:
+        (new_price * 100) >= (current_price * (100 + price_change_threshold)),  # %1 increase
         validators,
     )
 
@@ -105,7 +103,7 @@ def compute_prices_batch(pools: list[tuple], block_number: int, slot: int):
 def get_merkle_refresh_rate() -> int:
     # if 24 hours has passed since the last update, should update the merkle tree
     # 24 hours in seconds
-    # # TODO: dynamic param in config.strategy
+    # # TODO: (now) dynamic param in config.strategy
     return int(86400)
 
 
@@ -131,7 +129,7 @@ def gather_merkle_data(pool_ids: list[int], block_number: int, slot: int) -> tup
     prices_data: list[tuple] = compute_prices_batch(pools, block_number, slot)
 
     if not should_update:
-        should_update: bool = any(obj[1] for obj in prices_data)
+        should_update: bool = any(obj[2] for obj in prices_data)
 
     if should_update:
         return (True, prices_data)
@@ -139,7 +137,7 @@ def gather_merkle_data(pool_ids: list[int], block_number: int, slot: int) -> tup
     return (False, None)
 
 
-def prepare_report(balances: list, prices: list) -> tuple[str, str, int]:
+def prepare_report(balances: Iterator, prices: Iterator) -> tuple[str, str, int]:
     """Prepares the report for the balances and prices.
 
     Args:
@@ -166,61 +164,38 @@ def prepare_report(balances: list, prices: list) -> tuple[str, str, int]:
     # NOTE: for now we will send a fixed number. TODO: find a way to do this later.
     all_val_count = 1_000_000_000
     if all_val_count < 50_000:  # This can be parametrized.
-        # TODO: This should return 50k but send an email.
+        send_email(
+            "Unexpected Validator Count",
+            f" Validator count on chain is under 50k: {all_val_count}",
+            " Will continue operations as usual, but an investigation is suggested.",
+        )
         all_val_count = 50_000  # minimum count for the merkle tree
 
     return (price_merkle_tree.root, balance_merkle_tree.root, all_val_count)
 
 
-def transact_report_beacon(
+def report_beacon(
     price_merkle_root: str, balance_merkle_root: str, all_validators_count: int, block_number: int
 ) -> bool:
-    """Reports the beacon.
-
+    """Reports the beacon
+     - oracle is the owner's address->  no multisig                 ->  portal.reportBeacon
+     - oracle is not owner's address->  one signer on multisig      ->  multisig.execTransaction
+     - oracle is not owner's address->  multiple signers on multisig->  watcher.submit
     Args:
         price_merkle_root (str): The price merkle root.
         balance_merkle_root (str): The balance merkle root.
         all_validators_count (int): The all validators count.
         block_number (int): The block number to report the beacon for.
     """
-    # TODO : this function does not belong here.
 
-    ## oracle is the owner's address -> if no multisig -> call portal
-    ## oracle is not owner's address -> if one address on multisig -> call multisig
-    ##                               -> multiple addresses on multisig -> call watcher
-
-    signer_address = get_constants().signer_address
+    signer_address = get_constants().signer.address
 
     oracle_address = get_constants().oracle_address
 
     if signer_address == oracle_address:
-        # # call portal
-        # try:
-        #     success, tx_receipt = send_tx(
-        #         contract_address="0xcA69bA533810ee94b7649c57eF8aB22EBbE0bbf7",  # Portal contract address
-        #         method_id="0xdf1ff929",  # reportBeacon function signature
-        #         param_types=["bytes32", "bytes32", "uint256"],
-        #         param_args=[price_merkle_root, balance_merkle_root, all_validators_count],
-        #     )
+        transact_reportBeacon(price_merkle_root, balance_merkle_root, all_validators_count)
 
-        #     if success:
-        #         get_logger().info(
-        #             f"Successfully sent transaction: {dict(tx_receipt)['transactionHash'].hex()}"
-        #         )
-        #     else:
-        #         # TODO: decide how to handle error
-        #         get_logger().error(
-        #             f"Failed to send transaction (reverted): {dict(tx_receipt)['transactionHash'].hex()}"
-        #         )
-        # except ContractLogicError as e:
-        #     # TODO: decide how to handle exception
-        #     get_logger().error(f"Contract logic error: {str(e)}")
-        # except Exception as e:
-        #     # TODO: decide how to handle exception
-        #     get_logger().error(f"Error sending transaction: {str(e)}")
-        return
-
-    safe_owners: list = get_gnosis_safe(oracle_address).functions.getOwners().call()
+    safe_owners: list = get_constants().oracle.functions.getOwners().call()
 
     if len(safe_owners) == 1 and safe_owners[0] == signer_address:
         # TODO: call multisig directly, no watchers.
@@ -229,7 +204,7 @@ def transact_report_beacon(
         # TODO: call watchers
         pass
     else:
-        # TODO: raise if oracle_address is not in safe_owners
+        # TODO: raise if oracle_address is not in safe_owners => use api.
         raise Exception("Some error occurred. Please contact the Geodefi Team.")
 
     return True
