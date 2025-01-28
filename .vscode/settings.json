@@ -1,12 +1,12 @@
 {
   "editor.tabSize": 4,
-  "python.analysis.typeCheckingMode": "off",
+  "python.analysis.typeCheckingMode": "basic",
   "[python]": {
     "editor.defaultFormatter": "ms-python.black-formatter",
     "editor.formatOnSave": true,
     "editor.codeActionsOnSave": {
       "source.fixAll.eslint": "explicit",
-      "source.organizeImports.isort": "explicit"
+      "source.organizeImports": "explicit"
     }
   },
   "python.testing.pytestArgs": ["tests"],

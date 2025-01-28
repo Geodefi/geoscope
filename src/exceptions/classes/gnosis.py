@@ -1,6 +1,3 @@
-# -*- coding: utf-8 -*-
-
-
 class WatcherError(Exception):
     """Exception raised on gnosis related with watcher."""
 

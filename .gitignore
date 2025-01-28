@@ -187,15 +187,12 @@ pyrightconfig.json
 # IPython
 profile_default/
 ipython_config.py
-
+.geoscope/*
 *.ipynb
 .DS_STORE
-formatter.txt
-linter.txt
 # Remove previous ipynb_checkpoints
 #   git rm -r .ipynb_checkpoints/
 
 # End of https://www.toptal.com/developers/gitignore/api/jupyternotebooks
 
 .secrets
-trash/

@@ -1,15 +1,14 @@
-# -*- coding: utf-8 -*-
-
-from typing import Iterable
 from itertools import repeat
-from web3.types import EventData
-from web3.contract.contract import ContractEvent
+from typing import Iterable
 
 from geodefi.utils import multiple_attempt
+from web3.contract.contract import ContractEvent
+from web3.types import EventData
 
-from src.globals import get_logger, get_constants
-from src.utils.thread import multithread
+from src.globals import get_config, get_logger
+from src.globals.constants.config import CHAIN_RANGE_SLOT_FIELD
 from src.utils.list import flatten
+from src.utils.thread import multithread
 
 
 @multiple_attempt
@@ -27,14 +26,14 @@ def fetch_event_logs(event: ContractEvent, from_block: int, limit: int) -> Itera
     # if range is like [0,7,3] -> 0, 3, 6
     # get_batch_events would search 0-3, 3-6 and 6-9
     # but we want 0-3, 3-6, 6-7
-    max_block_range = int(get_constants().chain.range)
+    max_block_range = get_config(field=CHAIN_RANGE_SLOT_FIELD)
     to_block = min(from_block + max_block_range, limit)
 
     # @dev do not use filters instead, some providers do not support it.
     logs = event.get_logs(fromBlock=from_block, toBlock=to_block)
     if logs:
-        get_logger().info(
-            f"Detected {event.event_name:^20} logs between {from_block}-{to_block} => {len(logs)}"
+        get_logger().debug(
+            f"Detected {event.event_name:^20} events between {from_block}-{to_block} => {len(logs)}"
         )
     return logs
 
@@ -53,12 +52,15 @@ def gather_all_events(
     Returns:
         Iterable[EventData]: list of events.
     """
-    max_block_range = int(get_constants().chain.range)
-    r: range = range(first_block, last_block, max_block_range)
-    if first_block == last_block:
-        r: range = range(first_block, first_block + 1)
+    max_block_range = get_config(field=CHAIN_RANGE_SLOT_FIELD)
 
-    log_batches: Iterable[EventData] = multithread(
+    r: range
+    if first_block == last_block:
+        r = range(first_block, first_block + 1)
+    else:
+        r = range(first_block, last_block, max_block_range)
+
+    log_batches: Iterable[Iterable[EventData]] = multithread(
         fetch_event_logs, repeat(event), r, repeat(last_block)
     )
 

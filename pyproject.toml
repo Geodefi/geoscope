@@ -16,13 +16,15 @@ click = "^8.1.7"
 multiproof = "^0.1.9"
 ssz = "^0.5.0"
 py-ecc = "^7.0.1"
+tqdm = "^4.67.1"
 
 [tool.poetry.group.dev.dependencies]
-pylint = "==3.0.3"
+pylint = "^3.3.1"
 ipykernel = "^6.29.4"
 pytest = "^8.2.1"
 black = "^24.4.2"
 pyinstaller = "^6.9.0"
+types-requests = "^2.32.0.20240914"
 
 [tool.poetry.scripts]
 geoscope = "src.main:cli"

@@ -35,7 +35,7 @@ Geoscope keeps track of all the validators proposed through geodefi's Portal, an
 - Approving validator proposals by checking validators are not acting malicious for the proposal stage and lets them to stake by incresing the verification index
 - Create and push balance and price merkles to supply required data for the Portal from the beacon chain.
 - Informing Portal to imprison malicious node operators in cases:
-  - Proposing malicious validator during _proposeStake_
+  - Proposing malicious validator during *proposeStake*
   - Fee theft situations
   - Not exitting when required to exit
 
@@ -46,15 +46,15 @@ Geoscope keeps track of all the validators proposed through geodefi's Portal, an
 ### What geoscope does not do
 
 - Does not realy on one party, need a consensys to take actions.
-- Does not update prices on gETH, you need to call _priceSync_ function for that.
+- Does not update prices on gETH, you need to call *priceSync* function for that.
 - Does not send exit requests or force to exit any validator, users and node operators should take actions for that.
-- Does not call stake after approving validators, delegates to geonious for that.
+- Does not call stake after approving validators, delegates to geonius for that. # This is faulty: was geonious
 - Does not trust you or your friends.
 
 ### What geoscope does
 
 - Help you with its configuration.
-- Validate new validators that are created through _proposeStake_.
+- Validate new validators that are created through *proposeStake*.
 - Allow proposed validators to be staked.
 - Track all the deposits and withdrawals on beacon chain and update Portal with necessary calculations by pushing merkles.
 - Make sure there is no fee theft is happening

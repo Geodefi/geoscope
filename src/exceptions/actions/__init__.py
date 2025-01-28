@@ -1,3 +1,2 @@
-# -*- coding: utf-8 -*-
-
-from .portal import CallFailedError
+from .portal import CallFailedError, MultiSigError
+from .watcher import RequestException, WatcherApiError
