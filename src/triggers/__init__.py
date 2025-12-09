@@ -1,2 +1,2 @@
-# -*- coding: utf-8 -*-
 from .slot import BeaconTrigger
+from .time import DatabaseTrigger

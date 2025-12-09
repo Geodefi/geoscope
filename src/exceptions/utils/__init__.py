@@ -1,3 +1,2 @@
-# -*- coding: utf-8 -*-
-from .gas import HighGasError, GasApiError
+from .gas import GasApiError, HighGasError
 from .notify import EmailError

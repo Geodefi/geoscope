@@ -1,3 +1,2 @@
-# -*- coding: utf-8 -*-
-
-from .deposits import ValidatorMismatchError
+from .gnosis import EncodingError
+from .validators import SignatureError
