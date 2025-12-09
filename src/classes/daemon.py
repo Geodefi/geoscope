@@ -1,186 +1,330 @@
-# -*- coding: utf-8 -*-
+"""
+Daemon Management Module for Geoscope.
 
-from time import sleep
-from typing import Callable
-from threading import Thread, Event
+This module defines the Daemon class, which handles the execution of background tasks
+at specified intervals. It manages task execution, trigger processing, and handles
+various exceptions to ensure robust daemon operations.
+"""
 
-from src.logger import log
-from src.exceptions import DaemonError
-from .trigger import Trigger
+import signal
+import time
+from threading import Event, Lock, Thread
+from types import FrameType
+from typing import Any, Callable
+
+from web3.exceptions import TimeExhausted
+
+from src.classes.trigger import Trigger
+from src.exceptions import (
+    CallFailedError,
+    DaemonError,
+    EmailError,
+    EventFetchingError,
+    HighGasError,
+)
+from src.globals import get_logger
+from src.utils.notify import send_email
+
+# Define a global shutdown event
+shutdown_event = Event()
+
+
+# pylint: disable-next=unused-argument
+def handle_shutdown_signal(signum: int, frame: FrameType | None) -> None:
+    """
+    Handle shutdown signals to initiate a graceful shutdown.
+
+    Args:
+        signum (int): The signal number.
+        frame (FrameType): The current stack frame.
+    """
+    get_logger().warning("Shutdown signal is received. Initiating graceful shutdown...")
+    shutdown_event.set()
 
 
 class Daemon:
-    """A daemon repeats a specific task with given interval as a period.
-    Daemons use a single thread to run a loop at the background to run all the provided trigger,
-    and check for tasks on every iteration.
+    """
+    A daemon that repeatedly executes a specific task at a given interval.
 
-    .. code-block:: python
-        def print_time():
-            print(datetime.datetime.now())
+    Daemons use a single thread to run a background loop that executes the provided task
+    and processes triggers on every iteration.
 
-        def quick_run():
-            a = Daemon(interval=3, task=print_time)
-            a.run()
+    Example:
+        .. code-block:: python
 
-        quick_run()
+            def print_time():
+                print(datetime.datetime.now())
 
-        a.stop()
+            def quick_run():
+                trigger_instance = Trigger(...)
+                daemon = Daemon(interval=3, task=print_time, trigger=trigger_instance)
+                daemon.run()
+                sleep(10)  # Let it run for a while
+                daemon.stop()
+
+            quick_run()
 
     Attributes:
-        __interval (int): Time duration between 2 tasks.
-        __initial_delay (int): Initial delay before starting the loop.
-        __task (Callable): Work to be done after every iteration.
-        __worker (Thread): Thread object to run the loop.
-        trigger (Trigger): an initialized Trigger instance.
-        start_flag (Event): Event flag to start the daemon.
-        stop_flag (Event): Event flag to stop the daemon.
-
-    Raises:
-        DaemonError: Raised in several cases, such as when the daemon is already running or stopped.
+        _interval (int): Time duration between two task executions in seconds.
+        _initial_delay (int): Initial delay before starting the loop in seconds.
+        _task (Callable[..., Any]): The task to be executed after every interval.
+        _worker (Thread): Thread object running the daemon loop.
+        trigger (Trigger): An initialized Trigger instance.
+        _lock (Lock): A lock to manage thread-safe operations.
+        stop_flag (Event): Event flag indicating the daemon should stop.
     """
 
     def __init__(
         self,
         interval: int,
-        task: Callable,
+        task: Callable[..., Any],
         trigger: Trigger,
         initial_delay: int = 0,
     ) -> None:
-        """Initializes a Daemon object. The daemon will run the task with the given interval.
+        """
+        Initialize a Daemon instance.
+
+        The daemon will execute the provided task at the specified interval.
 
         Args:
-            interval (int): Time duration between 2 tasks.
-            task (Callable): Work to be done after every iteration
-            trigger (Trigger): an initialized Trigger instance
-            initial_delay (int, optional): Initial delay before starting the loop. Defaults to 0.
+            interval (int): Time duration between two task executions, in seconds.
+            task (Callable[..., Any]): The task function to execute on each interval.
+            trigger (Trigger): A Trigger instance already initialized with a registered action.
+            initial_delay (int, optional): Initial delay before starting the loop in seconds.
+                Defaults to 0.
+
+        Raises:
+            ValueError: If interval or initial_delay are not positive integers.
+            TypeError: If trigger is not an instance of Trigger.
         """
-        log.debug(
-            f"Initializing a Daemon object. interval: {interval}, trigger:{trigger.name}, delay:{initial_delay}"
+        if not isinstance(interval, int) or interval <= 0:
+            raise ValueError("Interval must be a positive integer.")
+        if not isinstance(initial_delay, int) or initial_delay < 0:
+            raise ValueError("Initial delay must be a non-negative integer.")
+        if not isinstance(trigger, Trigger):
+            raise TypeError("Given trigger is not an instance of Trigger.")
+
+        get_logger().debug(
+            f"Initializing a Daemon object. Interval: {interval}s, "
+            f"Trigger: {trigger:^20}, Initial Delay: {initial_delay}s"
         )
         self.__set_task(task)
         self.__set_interval(interval)
         self.__set_initial_delay(initial_delay)
         self.__set_trigger(trigger)
 
-        self.__worker: Thread = Thread(name=trigger.name, target=self.__loop)
-        self.start_flag: Event = Event()
+        self._worker: Thread = Thread(name=str(trigger), target=self.__loop)
+        self._shutdown_monitor: Thread = Thread(
+            name="Shutdown_Monitor", target=self.__check_shutdown
+        )
+        self._lock = Lock()
         self.stop_flag: Event = Event()
-        log.debug(f"Initialized a Daemon for: {trigger.name:^17}.")
+        get_logger().debug(f"Initialized a Daemon for: {trigger:^20}.")
 
     @property
     def interval(self) -> int:
-        """Returns waiting period (in seconds), as a property
+        """Get the waiting period between task executions in seconds.
 
         Returns:
-            int: Waiting period in seconds
+            int: Waiting period in seconds.
         """
-
-        return self.__interval
+        return self._interval
 
     @property
     def initial_delay(self) -> int:
-        """Returns initial delay before starting the loop, as a property
+        """Get the initial delay before the daemon starts looping in seconds.
 
         Returns:
-            int: Initial delay in seconds
+            int: Initial delay in seconds.
         """
-
-        return self.__initial_delay
+        return self._initial_delay
 
     def __set_interval(self, interval: int) -> None:
-        """Sets waiting period to given interval on initialization.
+        """Set the waiting period between task executions.
 
         Args:
-            interval (int): New waiting period
+            interval (int): New waiting period in seconds.
         """
-
-        self.__interval: int = interval
+        self._interval: int = interval
 
     def __set_initial_delay(self, initial_delay: int) -> None:
-        """Sets initial delay before starting the loop, on initialization.
+        """Set the initial delay before the daemon starts looping.
 
         Args:
-            initial_delay (int): New initial delay
+            initial_delay (int): New initial delay in seconds.
         """
+        self._initial_delay: int = initial_delay
 
-        self.__initial_delay: int = initial_delay
+    def __set_task(self, task: Callable[..., Any]) -> None:
+        """Set the task to be executed by the daemon.
 
-    def __set_task(self, task: Callable) -> None:
-        """Sets the task for the daemon on initialization.
-        Tasks should return a dict of effects to be checked by trigger.
+        Tasks should return a dictionary of effects to be checked by the trigger.
 
         Args:
-            task (function): New task to be done after every period.
+            task (Callable[..., Any]): New task function to be executed after every interval.
         """
-
-        self.__task: Callable = task
+        self._task: Callable[..., Any] = task
 
     def __set_trigger(self, trigger: Trigger) -> None:
-        """Sets list of trigger that will be checked on every iteration, called on initialization.
+        """Set the trigger instance for the daemon.
 
         Args:
-            trigger [Trigger] : an initialized Trigger instance
+            trigger (Trigger): An initialized Trigger instance.
         """
-        if isinstance(trigger, Trigger):
-            self.trigger: list[Trigger] = trigger
-        else:
-            raise TypeError("Given trigger is not an instince of Trigger")
+        self.trigger: Trigger = trigger
 
     def __loop(self) -> None:
-        """Runs the loop, checks for the task and trigger on every iteration. Stops when stop_flag is set.
+        """
+        Run the daemon loop, executing the task and processing triggers on every iteration.
 
-        If the task raises an exception, the daemon stops and raises a DaemonError. This is to prevent
-        the daemon from running with a broken task. The exception is raised to the caller to handle the error. The
-        daemon can be restarted after the error is handled. The stop_flag is set to prevent the daemon from running again.
+        The loop runs continuously at the specified interval until either the `stop_flag` is set
+        (via the `stop` method) or the global `shutdown_event` is set (via a shutdown signal).
+        If the task raises an exception, the daemon handles it accordingly, possibly sending
+        notifications and initiating shutdowns.
 
         Raises:
-            DaemonError: Raised if the daemon stops due to an exception.
+            DaemonError: Raised if the daemon stops due to an unhandled exception.
         """
-        sleep(self.__initial_delay)
+        self.__graceful_delay(self._initial_delay)
 
         while not self.stop_flag.wait(self.interval):
             try:
-                result: bool = self.__task()
+                result = self._task()
 
                 if result:
                     self.trigger.process(result)
 
-                else:
-                    pass
+            # TODO:(5) Is all exception handling done and verified here?
+            except (TimeExhausted, CallFailedError):
+                get_logger().warning(
+                    f"One of the calls failed for {self.trigger:^20}. "
+                    "Continuing but may need to be checked in case of a problem."
+                )
+                try:
+                    send_email(
+                        "Transaction Failed",
+                        "A Portal transaction has failed or could not be called for some reason. "
+                        "Operations will continue as usual, but an investigation is suggested.",
+                    )
+                except EmailError:
+                    get_logger().warning(
+                        "Unable to communicate with the owners. Continuing without assistance."
+                    )
+            except HighGasError as e:
+                get_logger().error(str(e))
+                get_logger().warning(
+                    f"High gas detected for {self.trigger:^20}. "
+                    "Continuing but may need to be checked in case of a problem."
+                )
+                try:
+                    send_email(
+                        "High Gas Alert",
+                        "The on-chain gas API reported that gas prices have surpassed \
+                            the maximum setting.",
+                        dont_notify_devs=True,
+                    )
+                except EmailError:
+                    get_logger().warning(
+                        "Unable to communicate with the owners. Continuing without assistance."
+                    )
+            except EventFetchingError as e:
+                get_logger().error(str(e))
+                try:
+                    send_email(
+                        "Event Fetching Error",
+                        "There was an issue while fetching an event from the chain. "
+                        "Geoscope will continue trying, but manual investigation is recommended.",
+                        dont_notify_devs=True,
+                    )
+                except EmailError:
+                    get_logger().warning(
+                        "Unable to communicate with the owners. Continuing without assistance."
+                    )
+                self.stop_flag.set()
 
+            # pylint: disable-next=broad-exception-caught
             except Exception as e:
-                log.error("Stopping Geonius")
-                raise DaemonError("Daemon stopped due to an exception.") from e
+                get_logger().exception(
+                    f"Stopping Geoscope due to unhandled exception in Daemon for: \
+                        {self.trigger:^20}"
+                )
+                try:
+                    send_email(
+                        "Geoscope Stopped",
+                        "All daemons have stopped, and the script has exited. \
+                            Please investigate the issue.",
+                    )
+                except EmailError:
+                    get_logger().warning("Could not send email while exiting Geoscope.")
+
+                shutdown_event.set()
+
+    def __check_shutdown(self) -> None:
+        """Monitor shutdown_event and propagate it to stop_flag"""
+        while not self.stop_flag.is_set():
+            if shutdown_event.wait(1):  # Check every second
+                self.stop_flag.set()
+                break
+
+    def __graceful_delay(self, seconds: int) -> bool:
+        """
+        Delay execution for the specified number of seconds, checking stop_flag every second.
+        Returns True if completed successfully, False if interrupted by stop_flag.
+        """
+        if seconds <= 0:
+            return True
+
+        end_time = time.time() + seconds
+
+        while time.time() < end_time:
+            if self.stop_flag.is_set():
+                return False
+            time.sleep(min(1, end_time - time.time()))
+
+        return True
 
     def run(self) -> None:
-        """Starts the daemon, runs the loop when called.
+        """
+        Start the daemon loop.
 
         Raises:
             DaemonError: Raised if the daemon is already running.
         """
-        if self.start_flag.is_set():
-            log.error("Stopping Geonius")
-            raise DaemonError("Daemon is already running.")
-        self.stop_flag.clear()
+        with self._lock:
+            if self._worker.is_alive():
+                get_logger().error("Daemon is already running.")
+                raise DaemonError("Daemon is already running.")
 
-        self.__worker.start()
-
-        self.start_flag.set()
-        log.info(
-            f"Daemon for {self.trigger.name:^17} is running. Use stop() to stop, and CTRL+C to exit."
-        )
+            self._worker.start()
+            self._shutdown_monitor.start()
+            get_logger().info(
+                f"Daemon for {self.trigger:^20} will run every {self.interval} seconds."
+            )
 
     def stop(self) -> None:
-        """Stops the daemon, exits the loop.
+        """
+        Stop the daemon loop gracefully.
 
         Raises:
             DaemonError: Raised if the daemon is already stopped.
         """
+        with self._lock:
+            if not self._worker.is_alive():
+                get_logger().error("Daemon is already stopped.")
+                raise DaemonError("Daemon is already stopped.")
 
-        # if already stopped
-        if not self.start_flag.is_set() or self.stop_flag.is_set():
-            log.error("Stopping Geonius")
-            raise DaemonError("Daemon is already stopped.")
+            self.stop_flag.set()
+            self._worker.join()
+            get_logger().info(f"Daemon for {self.trigger:^20} is stopped.")
 
-        self.stop_flag.set()
-        log.info(f"Daemon for {self.trigger.name:^17} is stopped.")
+    @staticmethod
+    def register_shutdown_handlers() -> None:
+        """
+        Handle shutdown signals.
+        """
+        # Register signal handlers for graceful shutdown
+        # Handle termination signal
+        signal.signal(signal.SIGTERM, handle_shutdown_signal)
+        # Handle Ctrl+C
+        signal.signal(signal.SIGINT, handle_shutdown_signal)
+        get_logger().debug("Shutdown handlers registered.")

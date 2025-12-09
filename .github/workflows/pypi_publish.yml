@@ -1,0 +1,35 @@
+name: Build and publish python 🐍 package 📦 to PyPI
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-publish-to-pypi:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4.1.7
+
+      - name: Setup Python 3.10
+        uses: actions/setup-python@v5.1.1
+        with:
+          python-version: "3.10"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install poetry
+
+      - name: Configure Poetry
+        # Delete the first config line if you are not using a test PyPI repository and
+        # replace the commented lines with the above line if you are using a PyPI repository
+        run: |
+          poetry config repositories.test-pypi https://test.pypi.org/legacy/
+          poetry config pypi-token.test-pypi ${{ secrets.TEST_PYPI_TOKEN }}
+      #   poetry config pypi-token.pypi ${{ secrets.PYPI_TOKEN }}
+      - name: Publish to PyPI
+        run: |
+          poetry publish --build -r test-pypi
+        #  poetry publish --build

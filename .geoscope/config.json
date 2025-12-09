@@ -1,0 +1,59 @@
+{
+  "version": 2,
+  "holesky": {
+    "chain": {
+      "range": 3000,
+      "start_slot": 1657884,
+      "identifier": "head",
+      "interval": "12",
+      "execution_api": "https://rpc.ankr.com/eth_holesky/<API_KEY_EXECUTION>",
+      "consensus_api": "https://rpc.ankr.com/premium-http/eth_holesky_beacon/<API_KEY_CONSENSUS>"
+    },
+    "strategy": {
+      "slot_period": 2,
+      "min_verification_delay": 3600,
+      "max_verification_delay": 86400,
+      "max_pending_validators": 10,
+      "price_change_threshold": 1.0,
+      "merkle_refresh_rate": 86400
+    },
+    "network": { "refresh_rate": 60, "max_attempt": 20, "attempt_rate": 0.1 },
+    "logger": {
+      "stream": true,
+      "dir": "logs",
+      "level": "INFO",
+      "format": {
+        "message": "[%(asctime)s] %(threadName)-29s | %(levelname)-8s :: %(message)s",
+        "date": "%H:%M:%S"
+      },
+      "backup": {
+        "when": "midnight",
+        "keep": 30
+      }
+    },
+    "db": {
+      "dir": "db",
+      "backup": {
+        "dir": "/Users/akif/geoscope",
+        "interval": 604800,
+        "keep": 1
+      }
+    },
+    "gas": {
+      "max_priority": 10,
+      "max_base": 100,
+      "api": "https://gas.api.infura.io/v3/<API_KEY_GAS>/networks/1/suggestedGasFees",
+      "parser": {
+        "priority": "low.suggestedMaxPriorityFeePerGas",
+        "base": "low.suggestedMaxFeePerGas"
+      }
+    },
+    "email": {
+      "sender": "admin@geode.fi",
+      "receivers": ["admin@geode.fi", "admin@geode.fi", "admin@geode.fi"],
+      "smtp_server": "smtp.gmail.com",
+      "smtp_port": 587
+    },
+    "watchers": []
+  }
+}

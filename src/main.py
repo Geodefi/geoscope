@@ -1,66 +1,41 @@
+"""
+Entry point for the application's command-line interface (CLI).
+
+This module sets up the CLI using Click, including version information
+and available commands.
+"""
+
 import sys
-from web3.contract.contract import ContractEvent
 
-from src.daemons import BlockDaemon, EventDaemon
+import click
 
-from src.triggers import (
-    FeeTheftTrigger,
-    MerkleTrigger,
-    VerificationTrigger,
-)
-
-from src.globals import SDK, hour_blocks
+from src.commands.backup import main as backup
+from src.commands.reset import main as reset
+from src.commands.restore import main as restore
+from src.commands.run import main as run
+from src.commands.version import main as get_version
 
 
-def setup_daemons():
-    """Initializes and runs the daemons for the triggers.
-
-    This function is called at the beginning of the program to make sure the
-    daemons are running.
+@click.group()
+@click.version_option(version=get_version())
+def cli() -> None:
     """
-    events: ContractEvent = SDK.portal.contract.events
+    Command-line interface (CLI) entry point for the application.
 
-    # Triggers
-    fee_theft_trigger: FeeTheftTrigger = FeeTheftTrigger()
-    merkle_trigger: MerkleTrigger = MerkleTrigger()
-    verification_trigger: VerificationTrigger = VerificationTrigger()
-
-    # Create appropriate type of Daemons for the triggers
-    verification_daemon: EventDaemon = EventDaemon(
-        trigger=verification_trigger, event=events.StakeProposal()
-    )
-
-    fee_theft_daemon: BlockDaemon = BlockDaemon(
-        trigger=fee_theft_trigger, block_period=1
-    )
-
-    merkle_daemon: BlockDaemon = BlockDaemon(
-        trigger=merkle_trigger,
-        block_period=12 * hour_blocks,  # TODO: Discuss this value
-    )
-
-    # Run the daemons
-
-    verification_daemon.run()
-    fee_theft_daemon.run()
-    merkle_daemon.run()
-
-
-def main():
-    """Main function of the program.
-
-    This function is called when the program is run.
-
-    initializes and sets up the daemons.
+    Defines the main CLI group using the Click library. It includes
+    a version option to display the current version of the application.
     """
 
-    try:
-        setup_daemons()
 
-    # pylint: disable-next=broad-exception-caught
-    except Exception as e:
-        sys.exit(e)
-
+cli.add_command(backup, "backup")
+cli.add_command(reset, "reset")
+cli.add_command(restore, "restore")
+cli.add_command(run, "run")
 
 if __name__ == "__main__":
-    main()
+    try:
+        cli()
+    # pylint: disable-next=broad-exception-caught
+    except Exception as e:
+        click.echo(f"An unexpected error occurred: {e}", err=True)
+        sys.exit(1)

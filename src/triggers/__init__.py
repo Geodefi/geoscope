@@ -1,2 +1,2 @@
-from .block import FeeTheftTrigger, MerkleTrigger
-from .event import VerificationTrigger
+from .slot import BeaconTrigger
+from .time import DatabaseTrigger

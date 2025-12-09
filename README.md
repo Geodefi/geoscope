@@ -1,133 +1,201 @@
-# Daemons
+# Geoscope
 
-==========
+- [Geoscope](#geoscope)
+  - [What is geoscope?](#what-is-geoscope)
+    - [How it works?](#how-it-works)
+    - [What geoscope does not do](#what-geoscope-does-not-do)
+    - [What geoscope does](#what-geoscope-does)
+  - [Installation](#installation)
+    - [Using pipx](#using-pipx)
+    - [Using a Binary Executable](#using-a-binary-executable)
+    - [Build from source](#build-from-source)
+  - [Configuration](#configuration)
+    - [1. Register to multisig](#1-register-to-multisig)
+    - [2. Create a .geoscope folder](#2-create-a-geoscope-folder)
+      - [config.json](#configjson)
+      - [.env](#env)
+    - [3. Setting up the gas api](#3-setting-up-the-gas-api)
+    - [4. Setting up the notification service](#4-setting-up-the-notification-service)
+  - [Running geoscope](#running-geoscope)
+    - [with pipx](#with-pipx)
+    - [with Binary](#with-binary)
+    - [with source files](#with-source-files)
+  - [Commands \& Flags](#commands--flags)
+  - [Contacts](#contacts)
+  - [License](#license)
 
-düzenli aralıklarla kontrol etmen gereken şeyler
+## What is geoscope?
 
-1. event
+Geoscope is a multi*daemon*tial oracle application that provides required checks and data updates for [geoDefi](https://www.geode.fi) contracts
 
-EventDaemon(interval, topic, contract_address) x1
+### How it works?
 
-2. block
+Geoscope keeps track of all the validators proposed through geodefi's Portal, and reates multiple daemons for 3 main tasks:
 
-BlockDaemon() x1 => triggers:[theft,]
+- Approving validator proposals by checking validators are not acting malicious for the proposal stage and lets them to stake by incresing the verification index
+- Create and push balance and price merkles to supply required data for the Portal from the beacon chain.
+- Informing Portal to imprison malicious node operators in cases:
+  - Proposing malicious validator during *proposeStake*
+  - Fee theft situations
+  - Not exitting when required to exit
 
-3. state x1 (theftTrigger, EventDaemon, etc.)
+> There are multiple daemons that are required to do different tasks like; listening beacon chain for withdrawals and deposits, checking verification indexes or creating merkles in timely manner.
+>
+> Check [this document](docs/daemons.md) to learn more about these daemons.
 
-# Actions
+### What geoscope does not do
 
-============
+- Does not realy on one party, need a consensys to take actions.
+- Does not update prices on gETH, you need to call *priceSync* function for that.
+- Does not send exit requests or force to exit any validator, users and node operators should take actions for that.
+- Does not call stake after approving validators, delegates to geonius for that. # This is faulty: was geonious
+- Does not trust you or your friends.
 
-1. Send tx
-2. send tx params to watcher server
-3. get email
-4. get telegram message
-5. save to database
+### What geoscope does
 
-1. getEventDetails
-2. falan
+- Help you with its configuration.
+- Validate new validators that are created through *proposeStake*.
+- Allow proposed validators to be staked.
+- Track all the deposits and withdrawals on beacon chain and update Portal with necessary calculations by pushing merkles.
+- Make sure there is no fee theft is happening
+- Inform Portal for maliciously acting operators to be imprisoned.
+- Checks if the gas is ok, before submitting a transaction.
+- Mails to its owners when there is a matter of importance.
+- Refuses to eleborate and leaves (sometimes). So, it is crucial to check if it is still alive every now and then.
 
-# Notes
+## Installation
 
-============
-Telescope :
--> birden fazla daemon çalıştırıp, her daemon loopu bitince de triggerları çalıştırıyor.
--> içerisine bi tane config alıyo ve ona göre customize ediyor.
+### Using pipx
 
-# Planning
+> **Preferred**
+>
+> [pipx](https://pipx.pypa.io/stable/) is the go-to choice for executable python applications.
+> Running this app with pipx will make it easy to update, and less error prone compared to using a binary executable or building from source.
 
-============
+```bash
+pipx install geoscope
+```
 
-1. telescope => daemonları alıyor, triggerları alıyor.
-2. daemon  
-   1. logicinin içerisinde triggerı gömebilirsin
-   2. stateful checkpoint logici yazılıcak.
-      1. belki daemon classı statefuldan inherit edilmeli
-      2. verfiy function olarak alınabilir.
-   3. sonra daemon lar yazılıcak.
-3. trigger
-4. yeri geldikçe de actionları yazarız
-5. yml ve config kullanıcak şekilde değiştir.
-   1. bu sırada logların actionlara göre nasıl işlenmesi gerektiği de stateful classında olmalı.
-6. log ekranı yazılıcak
+Pipx installation requires python version between **3.8** to **3.12**.
 
-TASKS:
+Check out [this document](./docs/installation_guide.md) if you need help or suggestions on this.
 
-1. UpdateVerificationIndex:     uint256 validatorVerificationIndex, bytes[]  alienatedPubkey
-2. reportBeacon:     bytes32 priceMerkleRoot, bytes32 balanceMerkleRoot, uint256 allValidatorsCount
-3. regulateOperators:     uint256[] feeThefts, bytes[] proofs
+### Using a Binary Executable
 
-Daemons:
+Binaries for the latest version of geoscope can be obtained from the [releases page](https://github.com/Geodefi/geoscope/releases).
 
-1. EVENT -> gerek kalmadı
-2. BLOCK -> planets{price, validators}
+Simply, locate and download the suitable one for your operation system.
 
-Note: eğer block recipient withdrawal pool değilse, biz de withdrawal pool a herhangi bir transaction yapılmış mı diye bakarız. hmm bu sıkıntı yaratabilir.
-Onun yerine relayların listesini tutabiliriz.
+### Build from source
 
-THEN a whole new stuff starts to pop up with EventDaemon which I don't even know what it does tbh but will hopefully figure out soon.
-Current objective is to finish the update verification index? -> on every x block check for events.
+Check out [this document](./docs/installation_guide.md).
 
-### diff
+## Configuration
 
-1. CLI kısmını daha sonra geliştirelim.
-2. Config.py can be modifiable.
-3. Stateful Objesinin tasklarını sona bırakabiliriz.
-4. Daemon -> trigger -> action
+### 1. Register to multisig
 
-##  checkpoint / log / email -> MONİTORING AND EVENT HANDLING
+Before configuration you need to be added to multisig, GeoDefi team probably already reached you out and you are probably here because of that. If you are already included to multisig you can continue with the next step.
 
--> loglar farklı DIR de dursun.
-   -> LOGGING => buna da daha sonra bakalım.
-   -> action ve run logları var ama herşeyi kaydetmiyoruz (**error handling parçası**)
+### 2. Create a .geoscope folder
 
-## typing, comments, file/variable naming (snake_case)
+> Note that, this is unnecessary and `geoscope config` command will create one for you. However, if you want to make sure everything is perfect, or if you already have a configuration file (config.json) or an environment file (.env) that you want to use and skip the `geoscope config` step; you can.
+>
+> Alternatively;
+>
+> ```bash
+> geoscope config
+> ```
 
-- verificationTrigger
-- priceTrigger, balanceTrigger -> price / balance,
-- Feetheft & MEV
-- stateDaemon
+This folder should be placed under the same parent folder where the geoscope script will run.
 
-TODO_comment : Please remove any unnecessary data at the end.
-Lets keep anything that can be useful for now.
+It will be used for the database, store the log files and keep the configuration file for you.
 
-TODO_task
-todo_later
-TODO_comment
-TODO_unrelated
-TODO_finally
+#### config.json
 
-1. verify + optimize
-2. Error Handling
-3. Comment
-4. Logging + Notifications
+A sample config.json with gas and email services activated can be found [here](./.geoscope/config.json).
 
-# TODOs: ICE
+If you want to understand the meaning of the fields, you can check [Commands \& Flags](#commands--flags).
 
-- 1 gün (8 session)
+#### .env
 
-use new geode-py
-Daemon + Trigger classı temize çekilicek
-Statefullar silinicek çünkü artık kullanmıyoruz
-Loglar şuan mühim değil ama istersen Daemon and Trigger classlarına koy
-Daemonları temize çek, triggerlara bak.
+A sample .env can be found [here](./.geoscope/.env.sample). Below you can find descriptions of required and optional environment parameters.
 
-Globals, utils temize çekilip test edilicek, yorum yazılıcak, todolar belirlenicek.
+- `GEOSCOPE_PRIVATE_KEY` : private key for the address which already added to multisig that will run geoscope.
+- `EMAIL_PASSWORD` : special passphrase of your arranged gmail address that can be used by other apps.
+- `API_KEY_EXECUTION` : (optional) api key that will be changed with the "<API_KEY_EXECUTION>" section of the execution layer api string. Not needed if the endpoint does not need a key.
+- `API_KEY_CONSENSUS` : (optional) api key that will be changed with the "<API_KEY_CONSENSUS>" section of the consensus layer api string. Not needed if the endpoint does not need a key.
+- `API_KEY_GAS` : (optional) api key that will be changed with the "<API_KEY_GAS>" section of the gas api string. Not needed if the endpoint does not need a key.
 
-.ipynb kullanmak yerine test yazılarak ilerlenebilir.
+### 3. Setting up the gas api
 
-# TODOs: Crash
+> Not suggested for holesky deployments.
 
-- create multisig / şuan herhangi bir multisig olur, faillaması da okay.
+Simply, you can provide any endpoint that responds as **gwei**, which will be used as a gas price oracle.
+Moreover, you can add maximum limits to the base and priority fees when api is provided.
 
-1. Tx yaratmak ve multisig ile submitlemek: (reportBeacon) MerkleTrigger __update_chain(function)
-   1. error handling (web3)
-2. multisig yerine watcher a atmak (tx ı)
+Note that you can also create a custom parser! For example, if the response has a body that looks like this, and you want to choose the "high" option.
 
-- BlockDaemon  -> MerkleTrigger        -> reportBeacon
-               -> verificationTrigger  -> updateVerificationIndex
+```json
+{
+  "low":..,
+  "mid":..,
+  "high": {"base":0,"priority":0}
+}
+```
 
-# TODOs later
+Then you can provide the parser as :
+{
+"base": "high.base",
+"priority": "high.priority"
+}
 
-regulateOperators Trigger ı yazılmamış.
-MerkleTrigger -> operator ve pool feeleri çıkarılıcak.
+For an easy setup, visit [infura](https://docs.infura.io/api/infura-expansion-apis/gas-api/api-reference/gasprices-type2) and aquire an app key. Then you can use the default parsers on the configuration step.
+
+### 4. Setting up the notification service
+
+You can configure this service easily so geoscope send you regular updates or notifications on its current situation. This can be crucial if there is a bug and geoscope fully or partially stops.
+
+Sign into gmail and head to: `https://myaccount.google.com/apppasswords`. Then you will acquire a passphrase like "xxx xxx xxx xxx". This password can be provided during the configuration with `passphrase config` or as `EMAIL_PASSWORD` directly in .env file.
+
+Then all you need to do is to provide the mail addresses for receiver and sender.
+
+> Note that, you can add many for the receiver field.
+
+## Running geoscope
+
+Up until this point, if you have:
+
+1. Included into multisig
+2. Installed geoscope with pipx, or downloaded it as a binary, or built it from source.
+3. Configured it with `geoscope config`
+
+Then, you are ready to start geoscope.
+
+### with pipx
+
+```bash
+geoscope run --chain holesky
+```
+
+### with Binary
+
+```bash
+geoscope run --chain holesky
+```
+
+### with source files
+
+Check out [this document](./docs/installation_guide.md).
+
+## Commands & Flags
+
+[Check out this document.](./docs/commands.md)
+
+## Contacts
+
+- Ice Bear - <admin@geode.fi>
+- Crash Bandicoot - <bandicoot@geode.fi>
+
+## License
+
+`geoscope` is licensed under [MIT](./LICENSE).
