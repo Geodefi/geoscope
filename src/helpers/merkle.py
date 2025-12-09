@@ -1,328 +1,373 @@
-# -*- coding: utf-8 -*-
+""" 
+Helper functions for computing and managing pool and validator data in the Portal contract.
+"""
 
-import os
 from itertools import repeat
-from multiproof import StandardMerkleTree
-from web3.exceptions import ContractLogicError
 
-from src.utils.thread import multithread
-from src.globals import get_logger, get_sdk
-from src.database.validators import fetch_pool_validators
-from src.database.pools import fetch_timely_pool_data
-from src.actions.multisig import send_tx
-from src.helpers.validators import fetch_validator_balances
-from src.helpers.portal import (
-    fetch_batch_portal_state,
-    get_oracle_update_timestamp,
-    get_oracle_address,
+from eth_typing import HexStr
+from geodefi.globals import DEPOSIT_SIZE  # BEACON_DENOMINATOR,
+from geodefi.globals import ETHER_DENOMINATOR, PERCENTAGE_DENOMINATOR, VALIDATOR_STATE
+from multiproof.standard import StandardMerkleTree
+
+from src.common import BigInteger
+from src.database.pools import read_latest_pool_data_batch
+from src.globals import get_config, get_sdk
+from src.globals.constants.config import (
+    STRATEGY_MERKLE_REFRESH_RATE_FIELD,
+    STRATEGY_PRICE_CHANGE_THRESHOLD_FIELD,
 )
-from src.actions.multisig import get_gnosis
+from src.helpers.portal import fetch_oracle_update_timestamp, fetch_portal_state
+from src.helpers.validators import gather_validator_data_by_pool
+from src.utils.notify import send_email
+from src.utils.thread import multithread
 
 
-def calculate_fees_and_pending(
-    pubkeys: list[str],
-    validator_statuses: list[str],
-    withdrawn_balances: list[str],
-    pool_fees: list[str],
-    operator_fees: list[str],
-    infrastructure_fees: list[str],
-    last_withdrawns: list[str],
+def compute_effective_balance(
+    val: tuple[
+        str, BigInteger, BigInteger, BigInteger, BigInteger, BigInteger, BigInteger, int, int
+    ],
     block_number: int,
-) -> tuple:
-    """Calculates the fees and pending rewards for a list of validators.
+) -> int:
+    """
+    Computes the effective balance of a validator.
+
+    Formula:
+        withdrawn_balance
+        + fee_recipient_balance
+        + beacon_balance
+        + pending_balance
+        - fees
 
     Args:
-        pubkeys (list[str]): The public keys of the validators.
-        validator_statuses (list[str]): The statuses of the validators.
-        withdrawn_balances (list[str]): The withdrawn balances of the validators.
-        pool_fees (list[str]): The pool fees of the validators.
-        operator_fees (list[str]): The operator fees of the validators.
-        infrastructure_fees (list[str]): The infrastructure fees of the validators.
-        last_withdrawns (list[str]): The last withdrawn balances of the validators.
-        block_number (int): The block number to calculate the fees and pending rewards for.
+        val (tuple[Any, ...]): A tuple containing validator data:
+            - pubkey
+            - pool_fee
+            - operator_fee
+            - infrastructure_fee
+            - withdrawn_balance
+            - last_withdrawn
+            - fee_recipient_balance
+            - beacon_balance
+            - beacon_status
+        block_number (int): The block number for fetching portal state.
 
     Returns:
-        tuple: The fees and pending rewards as a tuple.
+        int: The calculated effective balance or None if an error occurs.
     """
-
-    fees = 0
-    pending = 0
-    possible_pending_pks = []
-
-    for i, validator_status in enumerate(validator_statuses):
-        # since everything in lists are string we need to convert int when need
-        withdrawn_balance = int(withdrawn_balances[i])
-        pool_fee = int(pool_fees[i])
-        operator_fee = int(operator_fees[i])
-        infrastructure_fee = int(infrastructure_fees[i])
-        last_withdrawn = int(last_withdrawns[i])
-
-        if validator_status == "withdrawal_done":
-            fees += (
-                (withdrawn_balance - last_withdrawn)
-                * (pool_fee + operator_fee + infrastructure_fee)
-                / 1e10
-            )
-        else:
-            fees += (withdrawn_balance * (pool_fee + operator_fee + infrastructure_fee)) / 1e10
-
-        if validator_status == "pending_initialized":
-            possible_pending_pks.append(pubkeys[i])
-
-    portal_states = fetch_batch_portal_state(possible_pending_pks, block_number)
-
-    # 32 eth in wei for each pending_initialized and portal state active (2) validator
-    pending = portal_states.count(2) * 32 * 1e18
-
-    return fees, pending
-
-
-def calculate_pool_price(pool_id: int, block_number: int) -> dict:
-    """Calculates the price of a pool and returns it as a dictionary.
-
-    Args:
-        pool_id (str): The pool id to calculate the price for.
-
-    Returns:
-        dict: The price of the pool as a dictionary.
-    """
-    str_pool_id = str(pool_id)
-
-    # get all validators of the pool
-    # fetch fee percentages (pool_fee, operator_fee, infrastructure_fee), withdrawn_balances, last_withdrawns and fee_recepient_balances from validators db
-    # TODO: check if there is a chance for a validators any following values to be Null or None if so we need to handle it
-    validator_data = fetch_pool_validators(str_pool_id)
     (
-        pubkeys,
-        pool_fees,
-        operator_fees,
-        infrastructure_fees,
-        withdrawn_balances,
-        last_withdrawns,
-        fee_recepient_balances,
-    ) = map(list, zip(*validator_data))
+        pubkey,
+        pool_fee,
+        operator_fee,
+        infrastructure_fee,
+        withdrawn_balance,
+        last_withdrawn,
+        fee_recipient_balance,
+        beacon_balance,
+        beacon_status,
+    ) = val
+    fees: int = 0
+    pending: int = 0
 
-    # TODO: check if is guaranteed that these lists are in the same order with pubkeys
-    #       otherwise we need to return the pubkeys from fetch_pool_validators and use it here to sort the lists
-    validator_statuses, validator_balances = fetch_validator_balances(pubkeys)
+    if beacon_status == "pending_initialized":
+        # If it is not activated yet but active on portal:
+        # it is proposed AND 31 eth has not yet showed up on beaconchain.
+        # pending is 31 ETH.
+        # Also, there are no possibility to withdraw any funds thus fees stay 0.
+        if fetch_portal_state(pubkey, block_number) == VALIDATOR_STATE.ACTIVE:
+            pending = DEPOSIT_SIZE.STAKE
 
-    fulfilled_ether_balance, secured, surplus, total_supply, price = fetch_timely_pool_data(
-        str_pool_id
-    )
+    elif beacon_status == "withdrawal_done":
+        # If exited, last_withdrawn is the remaining beacon_balance, included in withdrawn_balance
+        # beacon_balance is not included in the fee calculation according to withdrawalPackage
+        fees = (
+            (withdrawn_balance - last_withdrawn)
+            * (pool_fee + operator_fee + infrastructure_fee)
+            // PERCENTAGE_DENOMINATOR
+        )
+    else:
+        # In any other case, portal has sent 32 eth in total which shows up on beacon_balance.
+        # Also, no pending.
+        fees = (
+            withdrawn_balance * (pool_fee + operator_fee + infrastructure_fee)
+        ) // PERCENTAGE_DENOMINATOR
 
-    fees, pending = calculate_fees_and_pending(
-        pubkeys,
-        validator_statuses,
-        withdrawn_balances,
-        pool_fees,
-        operator_fees,
-        infrastructure_fees,
-        last_withdrawns,
-        block_number,
-    )
+    #
+    return int(withdrawn_balance + beacon_balance + fee_recipient_balance + pending - fees)
 
-    validator_balance = (
-        sum(validator_balances) + sum(withdrawn_balances) + sum(fee_recepient_balances)
-    )
 
-    total_balance = validator_balance - fulfilled_ether_balance - fees + pending + secured + surplus
+def compute_effective_balances_batch(
+    validators: list[
+        tuple[str, BigInteger, BigInteger, BigInteger, BigInteger, BigInteger, BigInteger, int, int]
+    ],
+    block_number: int,
+) -> list[int]:
+    """
+    Computes effective balances for a batch of validators.
 
-    new_price = total_balance / total_supply
+    Args:
+        validators (list[tuple]): A list of validator data tuples.
+        block_number (int): The block number for fetching portal state.
+
+    Returns:
+        list[int]: A list of effective balances.
+    """
+    return multithread(compute_effective_balance, validators, repeat(block_number))
+
+
+def compute_price(
+    pool: tuple[
+        BigInteger,
+        BigInteger,
+        BigInteger,
+        BigInteger,
+        BigInteger,
+        BigInteger,
+    ],
+    block_number: int,
+    slot: int,
+) -> tuple[
+    BigInteger,  # pool_id
+    int,  # new_price
+    bool,  # price_increased
+    list[  # validators
+        tuple[str, BigInteger, BigInteger, BigInteger, BigInteger, BigInteger, BigInteger, int, int]
+    ],
+]:
+    """
+    Calculates the price of a pool.
+
+    Args:
+        pool (tuple): A tuple containing pool data:
+            - pool_id (BigInteger)
+            - current_price (BigInteger)
+            - total_supply (BigInteger)
+            - surplus (BigInteger)
+            - secured (BigInteger)
+            - fulfilled_ether_balance (BigInteger)
+        block_number (int): The block number for data fetching.
+        slot (int): The slot number associated with the pool.
+
+    Returns:
+        tuple: A tuple containing:
+            - pool_id (BigInteger)
+            - new_price (int)
+            - price_increased (bool)
+            - validators (list[tuple[str, BigInteger, BigInteger, BigInteger,
+                BigInteger, BigInteger, BigInteger, int, int]])
+    """
+    pool_id, current_price, total_supply, surplus, secured, fulfilled_ether_balance = pool
+
+    validators: list[
+        tuple[str, BigInteger, BigInteger, BigInteger, BigInteger, BigInteger, BigInteger, int, int]
+    ] = gather_validator_data_by_pool(pool_id, slot)
+
+    total_validator_balances: int = sum(compute_effective_balances_batch(validators, block_number))
+
+    total_balance: int = total_validator_balances + secured + surplus - fulfilled_ether_balance
+
+    # this should be ok without floor division, but returns float then:
+    new_price = total_balance * ETHER_DENOMINATOR // total_supply
+
+    price_change_threshold = get_config(field=STRATEGY_PRICE_CHANGE_THRESHOLD_FIELD)
 
     return (
         pool_id,
         new_price,
-        new_price / price > 1.01,  # if the price increased more than 1% return True else False
-        pubkeys,
-        validator_balances,
-        withdrawn_balances,
+        (new_price * 100)
+        >= (current_price * (100 + price_change_threshold)),  # True if >%x(float) increase
+        validators,
     )
 
 
-def calculate_prices(pool_ids: list[int], block_number: int) -> list[tuple]:
-    """Calculates the prices of pools and returns them as a dictionary.
+def compute_prices_batch(
+    pools: list[
+        tuple[
+            BigInteger,
+            BigInteger,
+            BigInteger,
+            BigInteger,
+            BigInteger,
+            BigInteger,
+        ]
+    ],
+    block_number: int,
+    slot: int,
+) -> list[
+    tuple[
+        BigInteger,  # pool_id
+        int,  # new_price
+        bool,  # price_increased
+        list[  # validators
+            tuple[
+                str,
+                BigInteger,
+                BigInteger,
+                BigInteger,
+                BigInteger,
+                BigInteger,
+                BigInteger,
+                int,
+                int,
+            ]
+        ],
+    ]
+]:
+    """
+    Computes prices for a batch of pools.
 
     Args:
-        block_number (int): The block number to calculate the prices for.
+        pools (list[tuple]): A list of pool data tuples.
+        block_number (int): The block number for data fetching.
+        slot (int): The slot number associated with the pools.
 
     Returns:
-        dict: The prices of the pools as a dictionary.
+        list[tuple]: A list of price data tuples or None for failed computations.
     """
-    return multithread(calculate_pool_price, pool_ids, repeat(block_number))
+    return multithread(compute_price, pools, repeat(block_number), repeat(slot))
 
 
-def should_update_merkle(pool_ids: list[int], block_number: int) -> tuple[bool, list[tuple]]:
+def is_merkle_old(block_number: int) -> bool:
+    """
+    Determines if the merkle tree needs to be updated based on the last oracle update timestamp.
+
+    Args:
+        block_number (int): The block number to fetch the timestamp from.
+
+    Returns:
+        bool: True if the merkle tree is outdated, False otherwise.
+    """
+    last_update_ts: int = fetch_oracle_update_timestamp(block_number)
+
+    current_ts: int = get_sdk().w3.eth.get_block(block_number).get("timestamp", 0)
+    merkle_refresh_rate: int = get_config(field=STRATEGY_MERKLE_REFRESH_RATE_FIELD)
+    return current_ts > (last_update_ts + merkle_refresh_rate)
+
+
+def gather_merkle_data(pool_ids: list[BigInteger], block_number: int, slot: int) -> tuple[
+    bool,
+    list[
+        tuple[
+            BigInteger,
+            int,
+            bool,
+            list[
+                tuple[
+                    str,
+                    BigInteger,
+                    BigInteger,
+                    BigInteger,
+                    BigInteger,
+                    BigInteger,
+                    BigInteger,
+                    int,
+                    int,
+                ]
+            ],
+        ]
+    ]
+    | None,
+]:
     """
     Checks the last update on merkle, if a configured! x(24h) amount has surpassed, update.
     Compares every pool for an increase of a configured! y(1) % change.
     Returns false otherwise.
+
+    Args:
+        pool_ids (list[BigInteger]): List of pool IDs to gather data for.
+        block_number (int): The block number for data fetching.
+        slot (int): The slot number associated with the pools.
+
+    Returns:
+        tuple[bool, list[tuple]]:
+            - False and None if no update is needed.
+            - True and prices_data tuple if an update is needed.
     """
+    should_update: bool = is_merkle_old(block_number)
 
-    should_update = False
+    pools: list[
+        tuple[
+            BigInteger,
+            BigInteger,
+            BigInteger,
+            BigInteger,
+            BigInteger,
+            BigInteger,
+        ]
+    ] = read_latest_pool_data_batch(pool_ids)
 
-    last_update_ts: int = get_oracle_update_timestamp(block_number)
-
-    current_ts: int = get_sdk().w3.eth.get_block(block_number).timestamp
-
-    # if 24 hours has passed since the last update, should update the merkle tree
-    if current_ts - last_update_ts > 86400:  # 24 hours in seconds
-        should_update = True
-    else:
-        return (False, None)
-
-    data: list[tuple] = calculate_prices(pool_ids, block_number)
+    # Calculates the new price and then checks if there are any increase that exceeds 1%
+    prices_data: list[
+        tuple[
+            BigInteger,  # pool_id
+            int,  # new_price
+            bool,  # price_increased
+            list[  # validators
+                tuple[
+                    str,
+                    BigInteger,
+                    BigInteger,
+                    BigInteger,
+                    BigInteger,
+                    BigInteger,
+                    BigInteger,
+                    int,
+                    int,
+                ]
+            ],
+        ]
+    ] = compute_prices_batch(pools, block_number, slot)
 
     if not should_update:
-        should_update = any(obj[2] for obj in data)
+        # Check if need an update according to prices_data[2] which represents
+        # price_increased: price increased more than threshold for pool.
+        should_update = any(obj[2] for obj in prices_data)
 
     if should_update:
-        return (True, data)
+        return (True, prices_data)
+
     return (False, None)
 
 
-def build_balances_and_prices(data: list[tuple]) -> tuple[list, list]:
-    """Builds the balances and prices for the validators.
-
-    Args:
-        data (list[tuple]): The data to build the balances and prices for.
-                            [(pool_id, new_price, price_eligibility, pubkeys, validator_balances, withdrawn_balances), ...]
-
-    Returns:
-        tuple(list, list): The balances and prices for the validators.
+def prepare_report(
+    prices: list[tuple[int, int]], balances: list[tuple[str, int, int]]
+) -> tuple[HexStr, HexStr, int]:
     """
-
-    prices = [[pool_id, new_price] for pool_id, new_price, *_ in data]
-    balances = [
-        [pubkey, validator_balance, withdrawn_balance]
-        for *_, pubkeys, validator_balances, withdrawn_balances in data
-        for pubkey, validator_balance, withdrawn_balance in zip(
-            pubkeys, validator_balances, withdrawn_balances
-        )
-    ]
-
-    return prices, balances
-
-
-def prepare_report(balances: list, prices: list) -> tuple[str, str, int]:
-    """Prepares the report for the balances and prices.
+    Prepares the report for balances and prices merkle roots.
 
     Args:
-        balances (list): The balances to prepare the report for.
-        prices (list): The prices to prepare the report for.
+        balances (list[tuple[int, int]]): Iterator of balance tuples.
+        prices (list[tuple[str, int, int]]: Iterator of price tuples.
 
     Returns:
-        tuple: The report for the balances and prices.
+        tuple[str, str, int]: validator balances merkle tree root hash,
+            pool derivative prices merkle tree root hash,
+            and the total validator count on the beacon chain.
     """
 
     # ----- pool price related calculations -----
     # create merkle tree for pool prices
-    # prices --> [[pool_id, price]...]
-    price_merkle_tree = StandardMerkleTree.of(prices, ["uint256", "uint256"])
-    price_merkle_root = price_merkle_tree.root
+    # prices --> [(pool_id, new_price)...]
+    price_merkle_tree: StandardMerkleTree = StandardMerkleTree.of(prices, ["uint256", "uint256"])
 
     # ----- validator balances related calculations -----
     # create merkle tree for validator balances
-    # balances --> [[pubkey, balance, withdrawn_balance]...]
-    balance_merkle_tree = StandardMerkleTree.of(balances, ["bytes", "uint256", "uint256"])
-    balance_merkle_root = balance_merkle_tree.root
+    # balances --> [(pubkey, balance, withdrawn_balance)...]
+    # TODO:(crash) check if pubkeys is correct type here
+    balance_merkle_tree: StandardMerkleTree = StandardMerkleTree.of(
+        balances, ["bytes", "uint256", "uint256"]
+    )
 
     # ----- all validators on chain related calculations -----
 
-    # NOTE: !!! for now we will send a fixed number, lets say 1m or someting like that.
-    all_val_count = 1_000_000_000  # we can fetch if from oklink, but need to discuss this
-    if all_val_count < 50_000:
+    # TODO:(later) find a way to do this later.
+    # NOTE: for now we will send a fixed number.
+    all_val_count = 1_000_000_000
+    if all_val_count < 50_000:  # TODO:(later) This can be parametrized.
+        send_email(
+            subject="Unexpected Validator Count",
+            body=f" Validator count on chain is under 50k: {all_val_count}"
+            f" Will continue operations as usual, but an investigation is suggested.",
+        )
         all_val_count = 50_000  # minimum count for the merkle tree
 
-    return (balance_merkle_root, price_merkle_root, all_val_count)
-
-
-# TODO: this function may be combined with multisig get_caller_data function or that one can be used here
-def is_oracle_owner(block_number: int) -> bool:
-    """Checks if the oracle is the owner.
-
-    Returns:
-        bool: True if the oracle is the owner, False otherwise.
-    """
-
-    private_key = os.getenv("GEOSCOPE_PRIVATE_KEY")
-    if private_key is None:
-        raise Exception("GEOSCOPE_PRIVATE_KEY is not set.")
-
-    try:
-        address = get_sdk().w3.eth.account.from_key(private_key).address
-    except Exception as e:
-        raise Exception("Invalid GEOSCOPE_PRIVATE_KEY") from e
-
-    if not get_sdk().w3.is_checksum_address(address):
-        address = get_sdk().w3.to_checksum_address(address)
-
-    oracle_address = get_oracle_address(block_number)
-
-    if not get_sdk().w3.is_checksum_address(oracle_address):
-        oracle_address = get_sdk().w3.to_checksum_address(oracle_address)
-
-    return address == oracle_address
-
-
-def report_beacon(
-    price_merkle_root: str, balance_merkle_root: str, all_validators_count: int, block_number: int
-) -> None:
-    """Reports the beacon.
-
-    Args:
-        price_merkle_root (str): The price merkle root.
-        balance_merkle_root (str): The balance merkle root.
-        all_validators_count (int): The all validators count.
-        block_number (int): The block number to report the beacon for.
-    """
-
-    ## oracle is the owner's address -> if no multisig -> call portal
-    ## oracle is not provided address -> if one address on multisig -> call multisig
-    ##                                -> multiple addresses on multisig -> call watcher
-
-    try:
-        gnosis_contract = get_gnosis()
-        owners = gnosis_contract.functions.getOwners().call()
-    except:
-        owners = None
-
-    if is_oracle_owner(block_number) and owners is None:
-        # call portal
-        try:
-            success, tx_receipt = send_tx(
-                contract_address="0xcA69bA533810ee94b7649c57eF8aB22EBbE0bbf7",  # Portal contract address
-                method_id="0xdf1ff929",  # reportBeacon function signature
-                param_types=["bytes32", "bytes32", "uint256"],
-                param_args=[price_merkle_root, balance_merkle_root, all_validators_count],
-            )
-
-            if success:
-                get_logger().info(
-                    f"Successfully sent transaction: {dict(tx_receipt)['transactionHash'].hex()}"
-                )
-            else:
-                # TODO: decide how to handle error
-                get_logger().error(
-                    f"Failed to send transaction (reverted): {dict(tx_receipt)['transactionHash'].hex()}"
-                )
-        except ContractLogicError as e:
-            # TODO: decide how to handle exception
-            get_logger().error(f"Contract logic error: {str(e)}")
-        except Exception as e:
-            # TODO: decide how to handle exception
-            get_logger().error(f"Error sending transaction: {str(e)}")
-    elif owners is None:
-        raise Exception("Cannot find the Gnosis Safe contract.")
-    elif len(owners) == 1:
-        # TODO: call multisig
-        pass
-    elif len(owners) > 1:
-        # TODO: call watcher
-        pass
-    else:
-        raise Exception("Some error occurred. Please contact the Geodefi Team.")
-
-    # TODO: send post request to backend to update the chain
-    # if state is active and balance less than 16, it is a problem, raise error and exit
-
-    # ----- update backend -----
+    return price_merkle_tree.root, balance_merkle_tree.root, all_val_count

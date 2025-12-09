@@ -1,6 +1,3 @@
-# -*- coding: utf-8 -*-
-
-
 class HighGasError(Exception):
     """The gas price is too high."""
 

@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 import os
 import smtplib
 from email import encoders
@@ -7,14 +5,25 @@ from email.mime.base import MIMEBase
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
-from src.common import AttributeDict
 from src.exceptions import EmailError
 from src.globals import get_config, get_logger
+from src.globals.constants.config import (
+    CHAIN_NAME_FIELD,
+    EMAIL_RECEIVERS_FIELD,
+    EMAIL_SENDER_FIELD,
+    EMAIL_SMTP_PORT_FIELD,
+    EMAIL_SMTP_SERVER_FIELD,
+    LOGGER_DIR_FIELD,
+    MAIN_DIR_FIELD,
+)
 
 
 def send_email(
-    subject: str, body: str, attachments: list[tuple[str, str]] = [], dont_notify_devs=None
-):
+    subject: str,
+    body: str,
+    attachments: list[tuple[str, str]] | None = None,
+    dont_notify_devs: bool = False,
+) -> None:
     """Sends an email to the provided developer address,
     as well as admin when allowed and applicable.
 
@@ -29,17 +38,13 @@ def send_email(
     Raises:
         EmailError:  when failed to send an email
     """
-    config: AttributeDict = get_config()
 
-    if config.email is None:
-        return
-
-    if dont_notify_devs is None:
-        dont_notify_devs = config.email.dont_notify_devs
+    # if dont_notify_devs is None:  # TODO:(later) we should ask or smt
+    #     dont_notify_devs = dont_notify_devs
 
     msg: MIMEMultipart = MIMEMultipart()
-    msg["From"] = config.email.sender
-    msg["To"] = ",".join(config.email.receivers)
+    msg["From"] = get_config(field=EMAIL_SENDER_FIELD)
+    msg["To"] = ",".join(get_config(field=EMAIL_RECEIVERS_FIELD))
     msg["Subject"] = f"[🧠 Geoscope]: {subject}"
     if not dont_notify_devs:
         body += (
@@ -50,30 +55,39 @@ def send_email(
 
     msg.attach(MIMEText(body, "plain"))
 
-    if not attachments and not config.logger.no_file:
-        main_dir: str = config.dir
-        log_dir: str = config.logger.dir
-        path: str = os.path.join(main_dir, log_dir, "log")
-        attachments: list[tuple[str, str]] = [(path, "log.txt")]
+    if not attachments:
+        main_dir: str = get_config(field=MAIN_DIR_FIELD)
+        log_dir: str = get_config(field=LOGGER_DIR_FIELD)
+        path: str = os.path.join(main_dir, log_dir, get_config(field=CHAIN_NAME_FIELD))
+        attachments = [(path, "log.txt")]
 
     try:
-        for file_path, file_name in attachments:
-            with open(file_path, "rb") as attachment:
-                part = MIMEBase("application", "octet-stream")
-                part.set_payload(attachment.read())
-            encoders.encode_base64(part)
-            part.add_header("Content-Disposition", f"attachment; filename= {file_name}")
-            msg.attach(part)
+        if attachments:
+            for file_path, file_name in attachments:
+                with open(file_path, "rb") as attachment:
+                    part = MIMEBase("application", "octet-stream")
+                    part.set_payload(attachment.read())
+                encoders.encode_base64(part)
+                part.add_header("Content-Disposition", f"attachment; filename= {file_name}")
+                msg.attach(part)
+
+    # pylint: disable-next=broad-exception-caught
     except Exception as e:
         get_logger().error(f"Failed to attach file {file_path}: {e}. Will try to send without it.")
 
     try:
-        server = smtplib.SMTP(config.email.smtp_server, config.email.smtp_port)
+        server = smtplib.SMTP(
+            host=get_config(field=EMAIL_SMTP_SERVER_FIELD),
+            port=get_config(field=EMAIL_SMTP_PORT_FIELD),
+        )
         server.starttls()
-        server.login(config.email.sender, os.getenv("EMAIL_PASSWORD"))
+        email_password = os.getenv("GEOSCOPE_EMAIL_PASSWORD")
+        if email_password is None:
+            raise EmailError("Email Password is not provided")
+        server.login(get_config(field=EMAIL_SENDER_FIELD), email_password)
         server.send_message(msg)
         server.quit()
     except Exception as e:
-        get_logger().error(f"Failed to send email.")
+        get_logger().error("Failed to send email.")
         get_logger().error(str(e))
-        raise EmailError(f"Failed to send an email") from e
+        raise EmailError("Failed to send an email") from e
